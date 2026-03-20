@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CaddyConfer – Caddy Reverse Proxy Configuration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-server me-2"></i>CaddyConfer
+            </span>
+            <div class="d-flex align-items-center gap-3">
+                <span id="caddyVersionBadge" class="badge bg-secondary" data-i18n-title="nav.version_click_title" title="Klicka för att kontrollera ny version" style="cursor:pointer">
+                    <i class="fas fa-info-circle me-1"></i><span data-i18n="nav.version_checking">Caddy version: kontrollerar...</span>
+                </span>
+                <button class="btn btn-sm btn-outline-light" id="btnLoadFile" data-i18n-title="nav.open_file_title" title="Öppna en befintlig konfigurationsfil">
+                    <i class="fas fa-folder-open me-1"></i><span data-i18n="nav.open_file">Öppna fil</span>
+                </button>
+                <input type="file" id="fileInput" accept=".caddy,.txt,.conf" class="d-none">
+                <button class="btn btn-sm btn-outline-light" id="btnReleaseNotes" data-bs-toggle="modal" data-bs-target="#releaseNotesModal" title="Release Notes">
+                    <i class="fas fa-newspaper me-1"></i><span data-i18n="nav.release_notes">Release Notes</span>
+                </button>
+                <button class="btn btn-sm btn-outline-light" id="langToggle" data-i18n-title="lang.toggle_title" title="Byt språk">
+                    🇸🇪 SV
+                </button>
+                <button class="btn btn-sm btn-outline-secondary ms-2" id="btnDarkMode" title="Dark mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+
+        <!-- Welcome / Quick-start -->
+        <div class="card mb-3 border-primary" id="welcomeCard">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-magic me-2 text-primary"></i><span data-i18n="welcome.title">Välkommen! Skapa en konfiguration för din webbserver</span></h5>
+                <p class="card-text mb-2">
+                    <span data-i18n="welcome.description">Det här verktyget hjälper dig att skapa en konfigurationsfil för Caddy – en webbserver som skyddar och vidarebefordrar trafik till dina applikationer.</span>
+                    <strong data-i18n="welcome.description_bold">Du behöver inte kunna något om servrar</strong><span data-i18n="welcome.description_suffix"> – följ stegen nedan eller välj en snabbmall:</span>
+                </p>
+                <div class="d-flex gap-2 flex-wrap mb-2">
+                    <button class="btn btn-outline-primary btn-preset" data-preset="simple">
+                        <i class="fas fa-bolt me-1"></i><span data-i18n="welcome.preset_simple">Enkel vidarebefordring</span>
+                        <small class="d-block text-muted" data-i18n="welcome.preset_simple_desc">Skicka trafik till en server</small>
+                    </button>
+                    <button class="btn btn-outline-success btn-preset" data-preset="secure">
+                        <i class="fas fa-shield-alt me-1"></i><span data-i18n="welcome.preset_secure">Säker vidarebefordring</span>
+                        <small class="d-block text-muted" data-i18n="welcome.preset_secure_desc">Med säkerhetsinställningar</small>
+                    </button>
+                    <button class="btn btn-outline-warning btn-preset" data-preset="loadbalanced">
+                        <i class="fas fa-balance-scale me-1"></i><span data-i18n="welcome.preset_loadbalanced">Lastbalanserad</span>
+                        <small class="d-block text-muted" data-i18n="welcome.preset_loadbalanced_desc">Flera servrar, hälsokontroll</small>
+                    </button>
+                    <button class="btn btn-outline-info btn-preset" data-preset="blank">
+                        <i class="fas fa-file me-1"></i><span data-i18n="welcome.preset_blank">Tom konfiguration</span>
+                        <small class="d-block text-muted" data-i18n="welcome.preset_blank_desc">Börja från scratch</small>
+                    </button>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="hideWelcome">
+                    <label class="form-check-label small text-muted" for="hideWelcome" data-i18n="welcome.hide_checkbox">Dölj den här rutan</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Left panel: Configuration Form -->
+            <div class="col-lg-7">
+
+                <!-- Caddy defaults info box -->
+                <div class="card border-info mb-3" id="caddyDefaultsCard">
+                    <div class="card-body py-2">
+                        <h6 class="card-title mb-1"><i class="fas fa-info-circle text-info me-1"></i><span data-i18n="caddy_defaults.title">Vad gör Caddy automatiskt?</span></h6>
+                        <p class="card-text small mb-1" data-i18n-html="caddy_defaults.description">Caddy har smarta standardinställningar som gör mycket åt dig <strong>utan att du behöver konfigurera något</strong>:</p>
+                        <div class="row small">
+                            <div class="col-md-6">
+                                <ul class="mb-1 ps-3">
+                                    <li data-i18n="caddy_defaults.auto_https"><strong>Automatisk HTTPS</strong> – hämtar och förnyar TLS-certifikat via Let's Encrypt</li>
+                                    <li data-i18n="caddy_defaults.http_redirect"><strong>HTTP → HTTPS omdirigering</strong> – sker automatiskt</li>
+                                    <li data-i18n="caddy_defaults.http2"><strong>HTTP/2 och HTTP/3</strong> – aktiveras automatiskt</li>
+                                    <li data-i18n="caddy_defaults.ocsp"><strong>OCSP-stapling</strong> – certifikatstatus hämtas automatiskt</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul class="mb-1 ps-3">
+                                    <li data-i18n="caddy_defaults.tls_modern"><strong>Modern TLS (1.2+)</strong> – osäkra protokoll blockeras</li>
+                                    <li data-i18n="caddy_defaults.proxy_headers"><strong>Proxy-headers</strong> – X-Forwarded-For/Proto/Host sätts automatiskt</li>
+                                    <li data-i18n="caddy_defaults.timeouts"><strong>Timeouts</strong> – rimliga standardvärden satta</li>
+                                    <li data-i18n="caddy_defaults.graceful"><strong>Graceful restart</strong> – noll nedtid vid omstart</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="text-muted small" data-i18n="caddy_defaults.note">💡 Du behöver bara konfigurera det som skiljer sig från ovanstående. Allt nedan är <em>tillägg</em> utöver Caddys standardbeteende.</div>
+                    </div>
+                </div>
+
+                <div class="accordion" id="configAccordion">
+
+                    <!-- 1. Site Address -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#siteSection">
+                                <i class="fas fa-globe me-2"></i><span data-i18n="section1.header">1. Webbadress</span>
+                                <span class="badge bg-danger ms-2" data-i18n="badges.required">Obligatoriskt</span>
+                            </button>
+                        </h2>
+                        <div id="siteSection" class="accordion-collapse collapse show" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <div class="help-explainer mb-3">
+                                    <i class="fas fa-question-circle me-1 text-primary"></i>
+                                    <strong data-i18n="section1.help_title">Vad är detta?</strong> <span data-i18n-html="section1.help_text">Här anger du adressen som besökare ska använda för att nå din tjänst, t.ex. <code>minapp.företag.se</code>. Det är den adress man skriver i webbläsaren.</span>
+                                    <a href="https://caddyserver.com/docs/caddyfile/concepts#addresses" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="hostname" class="form-label fw-bold"><span data-i18n="section1.label">Webbadress (domännamn)</span> <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control form-control-lg" id="hostname" data-i18n-placeholder="section1.placeholder" placeholder="t.ex. minapp.företag.se">
+                                    <div class="form-text" data-i18n="section1.help">Skriv in adressen som dina användare ska surfa till. Caddy ordnar automatiskt ett säkerhetscertifikat (HTTPS/"hänglåset") för denna adress.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Global Options -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#globalSection">
+                                <i class="fas fa-cog me-2"></i><span data-i18n="section2.header">2. Grundinställningar</span>
+                                <span class="badge bg-secondary ms-2" data-i18n="badges.optional">Valfritt</span>
+                            </button>
+                        </h2>
+                        <div id="globalSection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <div class="help-explainer mb-3">
+                                    <i class="fas fa-question-circle me-1 text-primary"></i>
+                                    <strong data-i18n="section2.help_title">Vad är detta?</strong> <span data-i18n="section2.help_text">Grundläggande inställningar för servern. De flesta kan lämnas tomma – Caddy väljer bra standardvärden automatiskt.</span>
+                                    <a href="https://caddyserver.com/docs/caddyfile/options" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="adminEmail" class="form-label" data-i18n="section2.email_label">E-postadress för säkerhetscertifikat</label>
+                                    <input type="email" class="form-control" id="adminEmail" data-i18n-placeholder="section2.email_placeholder" placeholder="admin@företag.se">
+                                    <div class="form-text" data-i18n="section2.email_help">Din e-post används för att få meddelanden om dina säkerhetscertifikat (t.ex. om de håller på att gå ut). Rekommenderat men inte obligatoriskt.</div>
+                                </div>
+                                <details class="mb-3">
+                                    <summary class="text-muted small"><i class="fas fa-cogs me-1"></i><span data-i18n="section2.advanced_summary">Avancerade serverinställningar (portar, HTTPS-hantering, m.m.)</span></summary>
+                                    <div class="mt-2">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="httpPort" class="form-label" data-i18n="section2.http_port_label">HTTP-port</label>
+                                                <input type="number" class="form-control" id="httpPort" placeholder="80" value="">
+                                                <div class="form-text" data-i18n="section2.http_port_help">Standardvärde: 80. Ändra bara om du har fått specifika instruktioner.</div>
+                                            </div>
+                                            <div class="col-md-6 mb-3">
+                                                <label for="httpsPort" class="form-label" data-i18n="section2.https_port_label">HTTPS-port (säker trafik)</label>
+                                                <input type="number" class="form-control" id="httpsPort" placeholder="443" value="">
+                                                <div class="form-text" data-i18n="section2.https_port_help">Standardvärde: 443. Ändra bara om du har fått specifika instruktioner.</div>
+                                            </div>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" id="autoHttps" checked>
+                                            <label class="form-check-label" for="autoHttps" data-i18n="section2.auto_https_label">Automatiska säkerhetscertifikat (HTTPS)</label>
+                                        </div>
+                                        <div class="form-text mb-3" data-i18n="section2.auto_https_help">Caddy ordnar automatiskt "hänglåset" (HTTPS) åt dig. Stäng bara av detta om du har egna certifikat.</div>
+
+                                        <div class="mb-3">
+                                            <label for="gracePeriod" class="form-label" data-i18n="section2.grace_period_label">Väntetid vid omstart</label>
+                                            <input type="text" class="form-control" id="gracePeriod" data-i18n-placeholder="section2.grace_period_placeholder" placeholder="t.ex. 30s">
+                                            <div class="form-text" data-i18n="section2.grace_period_help">Hur länge servern väntar på att pågående besökare blir klara innan den startar om. Lämna tomt för standardvärdet.</div>
+                                        </div>
+
+                                        <!-- Feature 4: Trusted Proxies (global) -->
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" id="enableGlobalTrustedProxies">
+                                            <label class="form-check-label" for="enableGlobalTrustedProxies" data-i18n="section2.trusted_proxies_enable">Caddy sitter bakom en lastbalanserare eller CDN</label>
+                                        </div>
+                                        <div class="form-text mb-2" data-i18n="section2.trusted_proxies_help">Aktivera detta om Caddy sitter bakom en annan proxy, lastbalanserare eller CDN. Det gör att Caddy ser besökarens riktiga IP-adress istället för proxyns.</div>
+                                        <div id="globalTrustedProxiesOptions" class="d-none">
+                                            <div class="mb-3">
+                                                <label for="globalTrustedProxiesPreset" class="form-label" data-i18n="section2.trusted_proxies_preset_label">Betrodda nätverk</label>
+                                                <select class="form-select" id="globalTrustedProxiesPreset">
+                                                    <option value="private" data-i18n="section2.trusted_proxies_private">Privata nätverk (RFC 1918)</option>
+                                                    <option value="cloudflare" data-i18n="section2.trusted_proxies_cloudflare">Cloudflare IP-adresser</option>
+                                                    <option value="custom" data-i18n="section2.trusted_proxies_custom">Egna IP-adresser</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3 d-none" id="globalTrustedProxiesCustom">
+                                                <label for="globalTrustedProxiesCustomInput" class="form-label" data-i18n="section2.trusted_proxies_custom_label">IP-adresser/CIDR (kommaseparerade)</label>
+                                                <input type="text" class="form-control" id="globalTrustedProxiesCustomInput" data-i18n-placeholder="section2.trusted_proxies_custom_placeholder" placeholder="t.ex. 10.0.0.0/8, 172.16.0.0/12">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. TLS / Certificates -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#tlsSection">
+                                <i class="fas fa-lock me-2"></i><span data-i18n="section3.header">3. Säkerhetscertifikat (HTTPS)</span>
+                                <span class="badge bg-secondary ms-2" data-i18n="badges.optional">Valfritt</span>
+                            </button>
+                        </h2>
+                        <div id="tlsSection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <div class="help-explainer mb-3">
+                                    <i class="fas fa-question-circle me-1 text-primary"></i>
+                                    <strong data-i18n="section3.help_title">Vad är detta?</strong> <span data-i18n="section3.help_text">Ett säkerhetscertifikat ger "hänglåset" i webbläsaren (HTTPS) och krypterar all trafik. Caddy fixar detta automatiskt – du behöver normalt inte ändra något här.</span>
+                                    <a href="https://caddyserver.com/docs/caddyfile/directives/tls" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold" data-i18n="section3.tls_mode_label">Hur ska certifikatet hanteras?</label>
+                                    <select class="form-select" id="tlsMode">
+                                        <option value="zerossl_api" data-i18n="section3.tls_zerossl" selected>ZeroSSL med API-nyckel – om ni har ett ZeroSSL-konto</option>
+                                        <option value="zerossl_fallback" data-i18n="section3.tls_zerossl_fallback">ZeroSSL + Fallback Let's Encrypt – byter automatiskt om ZeroSSL har problem</option>
+                                        <option value="auto" data-i18n="section3.tls_auto">🟢 Automatiskt – Caddy väljer certifikatleverantör åt dig</option>
+                                        <option value="cert_key" data-i18n="section3.tls_cert_key">Egna certifikatfiler – om ni redan har fått certifikat</option>
+                                        <option value="internal" data-i18n="section3.tls_internal">Internt testcertifikat – ENBART för test/utveckling</option>
+                                    </select>
+                                </div>
+
+                                <!-- ZeroSSL API Key section -->
+                                <div id="zerosslApiSection" class="tls-sub-section d-none">
+                                    <div class="mb-3">
+                                        <label for="zerosslApiKey" class="form-label" data-i18n="section3.zerossl_key_label">ZeroSSL API-nyckel</label>
+                                        <input type="text" class="form-control" id="zerosslApiKey" data-i18n-placeholder="section3.zerossl_key_placeholder" placeholder="Din ZeroSSL API-nyckel">
+                                        <div class="form-text" data-i18n-html="section3.zerossl_key_help">
+                                            API-nyckeln sätts i globala options-blocket. ZeroSSL utfärdar 90-dagars DV-certifikat som automatiskt förnyas.
+                                            <span class="badge bg-info">v2.4+</span>
+                                        </div>
+                                        <div class="help-explainer small mt-2" data-i18n-html="section3.zerossl_global_hint">
+                                            💡 <strong>Har du redan en ZeroSSL API-nyckel i din globala Caddyfile?</strong> Då kan du lämna detta fält tomt – Caddy använder automatiskt nyckeln som redan finns konfigurerad. Fältet behövs bara om du vill att nyckeln ska skrivas in i just denna konfiguration.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Custom cert/key section -->
+                                <div id="certKeySection" class="tls-sub-section d-none">
+                                    <div class="mb-3">
+                                        <label for="tlsCertPath" class="form-label" data-i18n="section3.cert_path_label">Sökväg till certifikat (.crt/.pem)</label>
+                                        <input type="text" class="form-control" id="tlsCertPath" placeholder="/etc/caddy/certs/server.crt">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="tlsKeyPath" class="form-label" data-i18n="section3.key_path_label">Sökväg till nyckel (.key/.pem)</label>
+                                        <input type="text" class="form-control" id="tlsKeyPath" placeholder="/etc/caddy/certs/server.key">
+                                    </div>
+                                </div>
+
+                                <!-- TLS options common -->
+                                <div class="mb-3">
+                                    <label for="tlsMinVersion" class="form-label" data-i18n="section3.tls_min_version_label">Lägsta TLS-version</label>
+                                    <select class="form-select" id="tlsMinVersion">
+                                        <option value="" data-i18n="section3.tls_min_default">Standard (TLS 1.2)</option>
+                                        <option value="tls1.2">TLS 1.2</option>
+                                        <option value="tls1.3">TLS 1.3</option>
+                                    </select>
+                                    <div class="form-text" data-i18n="section3.tls_min_help">TLS 1.2 är standard. TLS 1.3 ger bättre säkerhet och prestanda men kräver moderna klienter.</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="tlsCipherSuites" class="form-label" data-i18n="section3.cipher_label">Cipher suites (valfritt)</label>
+                                    <select class="form-select" id="tlsCipherSuites" multiple size="4">
+                                        <option value="TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384">TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384</option>
+                                        <option value="TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384">TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384</option>
+                                        <option value="TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256">TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256</option>
+                                        <option value="TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256">TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</option>
+                                        <option value="TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256">TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256</option>
+                                        <option value="TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256">TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256</option>
+                                    </select>
+                                    <div class="form-text" data-i18n-html="section3.cipher_help">
+                                        Håll Ctrl/Cmd för att välja flera. Lämna tomt för Caddy:s säkra standardval. Gäller bara TLS 1.2 – TLS 1.3 har fasta cipher suites.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 8. Reverse Proxy -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#proxySection">
+                                <i class="fas fa-exchange-alt me-2"></i><span data-i18n="section8.header">8. Destinationsserver (vart trafiken ska skickas)</span><span class="badge bg-danger ms-2" data-i18n="badges.required">Obligatoriskt</span>
+                            </button>
+                        </h2>
+                        <div id="proxySection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <h6 data-i18n="section8.upstream_title">Destinationsserver(ar)</h6>
+                                <div class="info-box mb-3">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <span data-i18n-html="section8.upstream_info">Ange adressen till den server (eller de servrar) som din webbapplikation körs på. Det är dit Caddy skickar vidare besökarnas trafik. Exempel: om din app körs på server <code>192.168.1.10</code> på port <code>8080</code>, skriv <code>192.168.1.10:8080</code>.</span>
+                                </div>
+                                <div id="upstreamList">
+                                    <div class="input-group mb-2 upstream-row">
+                                        <span class="input-group-text"><i class="fas fa-server"></i></span>
+                                        <input type="text" class="form-control upstream-address" data-i18n-placeholder="section8.upstream_placeholder" placeholder="t.ex. 127.0.0.1:8080 eller backend:3000">
+                                        <button class="btn btn-outline-danger remove-upstream-btn" type="button"><i class="fas fa-times"></i></button>
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary mb-3" id="addUpstream">
+                                    <i class="fas fa-plus me-1"></i><span data-i18n="section8.btn_add_upstream">Lägg till backend</span>
+                                </button>
+
+                                <!-- WebSocket Info Indicator -->
+                                <div id="websocketInfo" class="help-explainer d-none mb-3">
+                                    <span data-i18n-html="section_proxy.websocket_info">💡 WebSocket-stöd är automatiskt! Caddy hanterar automatiskt WebSocket-anslutningar (ws:// och wss://) när du använder reverse_proxy. Ingen extra konfiguration behövs.</span>
+                                </div>
+
+                                <!-- Load balancing (shown when >1 upstream) -->
+                                <div id="loadBalancingSection" class="d-none">
+                                    <h6 data-i18n="section8.lb_title">Fördelning av trafik (vid flera servrar)</h6> <a href="https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#load-balancing" target="_blank" class="docs-link-sm" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book"></i></a>
+                                    <div class="mb-3">
+                                        <label for="lbPolicy" class="form-label" data-i18n="section8.lb_label">Lastbalanseringsmetod</label>
+                                        <select class="form-select" id="lbPolicy">
+                                            <option value="round_robin" data-i18n="section8.lb_round_robin">Round Robin (standard)</option>
+                                            <option value="least_conn" data-i18n="section8.lb_least_conn">Least Connections</option>
+                                            <option value="first" data-i18n="section8.lb_first">First available</option>
+                                            <option value="random" data-i18n="section8.lb_random">Random</option>
+                                            <option value="ip_hash" data-i18n="section8.lb_ip_hash">IP Hash</option>
+                                            <option value="uri_hash" data-i18n="section8.lb_uri_hash">URI Hash</option>
+                                            <option value="cookie" data-i18n="section8.lb_cookie">Cookie-baserad</option>
+                                            <option value="header" data-i18n="section8.lb_header">Header-baserad</option>
+                                            <option value="random_choose" data-i18n="section8.lb_random_choose">Random Choose (Power of Two)</option>
+                                        </select>
+                                        <div class="form-text" id="lbPolicyDesc" data-i18n="section8.lb_desc">Fördelar trafik jämnt mellan alla backends i tur och ordning.</div>
+                                    </div>
+
+                                    <div id="lbCookieOptions" class="d-none mb-3">
+                                        <label for="lbCookieName" class="form-label" data-i18n="section8.lb_cookie_label">Cookie-namn</label>
+                                        <input type="text" class="form-control" id="lbCookieName" value="lb" placeholder="lb">
+                                        <div class="form-text" data-i18n="section8.lb_cookie_help">Cookie som används för session-sticky lastbalansering.</div>
+                                    </div>
+                                    <div id="lbHeaderOptions" class="d-none mb-3">
+                                        <label for="lbHeaderName" class="form-label" data-i18n="section8.lb_header_label">Header-namn</label>
+                                        <input type="text" class="form-control" id="lbHeaderName" placeholder="X-Custom-Header">
+                                        <div class="form-text" data-i18n="section8.lb_header_help">Header vars värde används för att välja backend.</div>
+                                    </div>
+                                    <div id="lbRandomChooseOptions" class="d-none mb-3">
+                                        <label for="lbRandomChooseCount" class="form-label" data-i18n="section8.lb_random_choose_label">Antal att välja bland</label>
+                                        <input type="number" class="form-control" id="lbRandomChooseCount" value="2" min="2">
+                                        <div class="form-text" data-i18n="section8.lb_random_choose_help">Väljer slumpmässigt N backends, sedan den med minst anslutningar. Standard: 2 (Power of Two Choices). <span class="badge bg-info">v2.4+</span></div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="lbTryDuration" class="form-label" data-i18n="section8.lb_try_duration_label">Try duration</label>
+                                        <input type="text" class="form-control" id="lbTryDuration" data-i18n-placeholder="section8.lb_try_duration_placeholder" placeholder="t.ex. 5s">
+                                        <div class="form-text" data-i18n="section8.lb_try_duration_help">Hur länge Caddy ska försöka vidarebefordra till andra backends vid fel. <span class="badge bg-info">v2.5+</span></div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="lbTryInterval" class="form-label" data-i18n="section8.lb_try_interval_label">Try interval</label>
+                                        <input type="text" class="form-control" id="lbTryInterval" data-i18n-placeholder="section8.lb_try_interval_placeholder" placeholder="t.ex. 250ms">
+                                        <div class="form-text" data-i18n="section8.lb_try_interval_help">Väntetid mellan nya försök. <span class="badge bg-info">v2.5+</span></div>
+                                    </div>
+                                </div>
+
+                                <!-- Health checks -->
+                                <h6 data-i18n="section8.health_title">Hälsokontroll av servrar</h6> <a href="https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#active-health-checks" target="_blank" class="docs-link-sm" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book"></i></a>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableHealthCheck">
+                                    <label class="form-check-label" for="enableHealthCheck" data-i18n="section8.health_enable_label">Aktivera aktiv hälsokontroll</label>
+                                </div>
+                                <div id="healthCheckOptions" class="d-none">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="healthUri" class="form-label" data-i18n="section8.health_uri_label">Health URI</label>
+                                            <input type="text" class="form-control" id="healthUri" placeholder="/health">
+                                            <div class="form-text" data-i18n="section8.health_uri_help">URL-sökväg som kontrolleras regelbundet.</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="healthPort" class="form-label" data-i18n="section8.health_port_label">Health Port</label>
+                                            <input type="number" class="form-control" id="healthPort" placeholder="">
+                                            <div class="form-text" data-i18n="section8.health_port_help">Port för hälsokontroller (om annan än upstream-port).</div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label for="healthInterval" class="form-label" data-i18n="section8.health_interval_label">Intervall</label>
+                                            <input type="text" class="form-control" id="healthInterval" placeholder="30s" value="30s">
+                                            <div class="form-text" data-i18n="section8.health_interval_help">Tid mellan kontroller.</div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="healthTimeout" class="form-label" data-i18n="section8.health_timeout_label">Timeout</label>
+                                            <input type="text" class="form-control" id="healthTimeout" placeholder="5s" value="5s">
+                                            <div class="form-text" data-i18n="section8.health_timeout_help">Max väntetid per kontroll.</div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="healthStatus" class="form-label" data-i18n="section8.health_status_label">Förväntat svar</label>
+                                            <input type="text" class="form-control" id="healthStatus" placeholder="200">
+                                            <div class="form-text" data-i18n="section8.health_status_help">HTTP-statuskod som räknas som OK (t.ex. 200, 2xx).</div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="healthBody" class="form-label" data-i18n="section8.health_body_label">Förväntad body (regex)</label>
+                                        <input type="text" class="form-control" id="healthBody" placeholder="">
+                                        <div class="form-text" data-i18n="section8.health_body_help">Regex-mönster som svarskroppen måste matcha.</div>
+                                    </div>
+                                </div>
+
+                                <!-- Passive health checks -->
+                                <div class="form-check form-switch mb-2 mt-2">
+                                    <input class="form-check-input" type="checkbox" id="enablePassiveHealth">
+                                    <label class="form-check-label" for="enablePassiveHealth" data-i18n="section8.passive_health_label">Aktivera passiv hälsokontroll</label>
+                                </div>
+                                <div id="passiveHealthOptions" class="d-none">
+                                    <div class="info-box mb-2">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <span data-i18n="section8.passive_health_info">Passiva hälsokontroller använder svar från riktig trafik för att upptäcka ohälsosamma backends utan extra requests.</span>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <label for="passiveFailDuration" class="form-label" data-i18n="section8.passive_fail_duration_label">Fail duration</label>
+                                            <input type="text" class="form-control" id="passiveFailDuration" placeholder="30s">
+                                            <div class="form-text" data-i18n="section8.passive_fail_duration_help">Tid under vilken fel räknas.</div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="passiveMaxFails" class="form-label" data-i18n="section8.passive_max_fails_label">Max fails</label>
+                                            <input type="number" class="form-control" id="passiveMaxFails" placeholder="5">
+                                            <div class="form-text" data-i18n="section8.passive_max_fails_help">Antal fel innan backend markeras som ohälsosam.</div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label for="passiveUnhealthyLatency" class="form-label" data-i18n="section8.passive_unhealthy_latency_label">Unhealthy latency</label>
+                                            <input type="text" class="form-control" id="passiveUnhealthyLatency" placeholder="30s">
+                                            <div class="form-text" data-i18n="section8.passive_unhealthy_latency_help">Backend markeras som ohälsosam om latens överstiger detta.</div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="passiveUnhealthyStatus" class="form-label" data-i18n="section8.passive_unhealthy_status_label">Unhealthy status</label>
+                                        <input type="text" class="form-control" id="passiveUnhealthyStatus" placeholder="500 502 503">
+                                        <div class="form-text" data-i18n="section8.passive_unhealthy_status_help">HTTP-statuskoder som räknas som fel (mellanslagsseparerade).</div>
+                                    </div>
+                                </div>
+
+                                <!-- Proxy headers -->
+                                <h6 class="mt-3" data-i18n="section8.proxy_headers_title">Proxy-headers (upstream)</h6> <a href="https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#headers" target="_blank" class="docs-link-sm" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book"></i></a>
+                                <div class="info-box mb-2">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <span data-i18n="section8.proxy_headers_info">Headers som skickas till backend-servern. Caddy sätter automatiskt X-Forwarded-For, X-Forwarded-Proto och X-Forwarded-Host.</span>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="proxyHeaderXRealIp">
+                                    <label class="form-check-label" for="proxyHeaderXRealIp" data-i18n="section8.proxy_xrealip_label">X-Real-IP</label>
+                                    <div class="form-text" data-i18n="section8.proxy_xrealip_help">Skickar klientens riktiga IP-adress till backend. Användbart om backend förlitar sig på denna header.</div>
+                                </div>
+
+                                <div id="proxyCustomHeadersUp">
+                                    <h6 class="mt-2 small" data-i18n="section8.header_up_title">Egna header_up</h6>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary mb-2" id="addHeaderUp">
+                                    <i class="fas fa-plus me-1"></i><span data-i18n="section8.btn_add_header_up">Lägg till header_up</span>
+                                </button>
+
+                                <div id="proxyCustomHeadersDown">
+                                    <h6 class="mt-2 small" data-i18n="section8.header_down_title">Egna header_down</h6>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary mb-3" id="addHeaderDown">
+                                    <i class="fas fa-plus me-1"></i><span data-i18n="section8.btn_add_header_down">Lägg till header_down</span>
+                                </button>
+
+                                <!-- Transport -->
+                                <h6 data-i18n="section8.transport_title">Anslutning till destinationsservern</h6> <a href="https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#transports" target="_blank" class="docs-link-sm" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book"></i></a>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="transportTls">
+                                    <label class="form-check-label" for="transportTls" data-i18n="section8.transport_tls_label">TLS till backend</label>
+                                    <div class="form-text" data-i18n="section8.transport_tls_help">Aktivera om backend-servern kräver HTTPS.</div>
+                                </div>
+                                <div id="transportTlsOptions" class="d-none">
+                                    <div class="form-check form-switch mb-2">
+                                        <input class="form-check-input" type="checkbox" id="transportTlsInsecure">
+                                        <label class="form-check-label" for="transportTlsInsecure" data-i18n="section8.transport_insecure_label">Hoppa över certifikatverifiering (insecure)</label>
+                                        <div class="form-text text-warning" data-i18n="section8.transport_insecure_help">⚠️ Hoppar över verifiering av backends TLS-certifikat. Använd bara för test eller om du litar på nätverket.</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="transportTlsServerName" class="form-label" data-i18n="section8.transport_sni_label">Server name (SNI)</label>
+                                        <input type="text" class="form-control" id="transportTlsServerName" placeholder="">
+                                        <div class="form-text" data-i18n="section8.transport_sni_help">Overrida TLS server name för backend-anslutningen.</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="transportTlsCaCert" class="form-label" data-i18n="section8.transport_ca_label">CA-certifikat för backend</label>
+                                        <input type="text" class="form-control" id="transportTlsCaCert" placeholder="/path/to/backend-ca.crt">
+                                        <div class="form-text" data-i18n="section8.transport_ca_help">Eget CA-certifikat att lita på för backend TLS.</div>
+                                    </div>
+                                </div>
+
+                                <!-- Misc proxy settings -->
+                                <h6 class="mt-3" data-i18n="section8.misc_title">Övriga inställningar</h6>
+                                <div class="mb-3">
+                                    <label for="flushInterval" class="form-label" data-i18n="section8.flush_interval_label">Flush interval</label>
+                                    <input type="text" class="form-control" id="flushInterval" data-i18n-placeholder="section8.flush_interval_placeholder" placeholder="t.ex. 100ms eller -1">
+                                    <div class="form-text" data-i18n-html="section8.flush_interval_help">Hur ofta data flushes till klienten. <code>-1</code> = flush omedelbart (bra för SSE/streaming). Standard: automatiskt.</div>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="bufferRequests">
+                                    <label class="form-check-label" for="bufferRequests" data-i18n="section8.buffer_requests_label">Buffer requests</label>
+                                    <div class="form-text" data-i18n="section8.buffer_requests_help">Buffrar hela requestkroppen innan den skickas till backend. Användbart om backend inte stödjer chunked transfer.</div>
+                                </div>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="bufferResponses">
+                                    <label class="form-check-label" for="bufferResponses" data-i18n="section8.buffer_responses_label">Buffer responses</label>
+                                    <div class="form-text" data-i18n="section8.buffer_responses_help">Buffrar hela svaret från backend innan det skickas till klienten. <span class="badge bg-info">v2.7+</span></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="maxBufferSize" class="form-label" data-i18n="section8.max_buffer_label">Max buffer size</label>
+                                    <input type="text" class="form-control" id="maxBufferSize" data-i18n-placeholder="section8.max_buffer_placeholder" placeholder="t.ex. 10mb">
+                                    <div class="form-text" data-i18n="section8.max_buffer_help">Max buffertstorlek för request/response-buffring. <span class="badge bg-info">v2.6+</span></div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="trustedProxies" class="form-label" data-i18n="section8.trusted_proxies_label">Trusted proxies</label> <a href="https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#trusted-proxies" target="_blank" class="docs-link-sm" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book"></i></a>
+                                    <input type="text" class="form-control" id="trustedProxies" data-i18n-placeholder="section8.trusted_proxies_placeholder" placeholder="t.ex. 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16">
+                                    <div class="form-text" data-i18n="section8.trusted_proxies_help">
+                                        CIDR-intervall för betrodda proxies uppströms. Caddy använder detta för att korrekt avgöra klientens riktiga IP.
+                                        <span class="badge bg-info">v2.5+</span>
+                                    </div>
+                                </div>
+
+                                <!-- Feature 2: Custom Error Pages -->
+                                <h6 class="mt-3" data-i18n="section8.error_pages_title">Anpassade felsidor</h6> <a href="https://caddyserver.com/docs/caddyfile/directives/handle_errors" target="_blank" class="docs-link-sm" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book"></i></a>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableErrorPages">
+                                    <label class="form-check-label" for="enableErrorPages" data-i18n="section8.error_pages_enable">Aktivera anpassade felsidor</label>
+                                </div>
+                                <div id="errorPagesSection" class="d-none mb-3">
+                                    <div class="info-box mb-2">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <span data-i18n="section8.error_pages_info">Visa egna felmeddelanden istället för Caddys standardtexter när något går fel (t.ex. sidan saknas, servern svarar inte).</span>
+                                    </div>
+                                    <div id="errorPageRules">
+                                        <div class="row error-page-row mb-2 align-items-center">
+                                            <div class="col-3">
+                                                <label class="form-label form-label-sm mb-1" data-i18n="section8.error_status_label">Felkod</label>
+                                                <select class="form-select form-select-sm error-page-status">
+                                                    <option value="404">404 – Not Found</option>
+                                                    <option value="500">500 – Internal Server Error</option>
+                                                    <option value="502">502 – Bad Gateway</option>
+                                                    <option value="503">503 – Service Unavailable</option>
+                                                    <option value="504">504 – Gateway Timeout</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-7">
+                                                <label class="form-label form-label-sm mb-1" data-i18n="section8.error_message_label">Meddelande</label>
+                                                <input type="text" class="form-control form-control-sm error-page-message" data-i18n-placeholder="section8.error_message_placeholder" placeholder="t.ex. Sidan kunde inte hittas">
+                                            </div>
+                                            <div class="col-2 d-flex align-items-end">
+                                                <button class="btn btn-sm btn-outline-danger remove-error-page-btn"><i class="fas fa-times"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary" id="addErrorPage">
+                                        <i class="fas fa-plus me-1"></i><span data-i18n="section8.btn_add_error">Lägg till felsida</span>
+                                    </button>
+                                </div>
+
+                                <!-- Path-based Routing -->
+                                <hr class="my-3">
+                                <h6 data-i18n="section_proxy.path_routing_title">Sökvägsbaserad routing</h6>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enablePathRouting">
+                                    <label class="form-check-label" for="enablePathRouting" data-i18n="section_proxy.path_routing_enable">Aktivera sökvägsbaserad routing</label>
+                                </div>
+                                <div id="pathRoutingOptions" class="d-none">
+                                    <div class="help-explainer mb-3">
+                                        <i class="fas fa-question-circle me-1 text-primary"></i>
+                                        <span data-i18n="section_proxy.path_routing_help">Skicka olika URL-sökvägar till olika servrar. Till exempel, skicka /api-anrop till en server och allt annat till en annan.</span>
+                                        <a href="https://caddyserver.com/docs/caddyfile/directives/reverse_proxy" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                    </div>
+                                    <div id="pathRoutingRules">
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary mb-3" id="addPathRule">
+                                        <i class="fas fa-plus me-1"></i><span data-i18n="section_proxy.path_routing_add_rule">Lägg till regel</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 11. Redirects -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#redirectSection">
+                                <i class="fas fa-directions me-2"></i><span data-i18n="section11.header">11. Omdirigeringar</span>
+                                <span class="badge bg-secondary ms-2" data-i18n="badges.optional">Valfritt</span>
+                            </button>
+                        </h2>
+                        <div id="redirectSection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <div class="help-explainer mb-3">
+                                    <i class="fas fa-question-circle me-1 text-primary"></i>
+                                    <strong data-i18n="section11.help_title">Vad är detta?</strong> <span data-i18n="section11.help_text">Omdirigeringar skickar besökare automatiskt från en adress till en annan. Användbart när du har bytt namn på en sida eller vill peka om gammal trafik till en ny plats.</span>
+                                    <a href="https://caddyserver.com/docs/caddyfile/directives/redir" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                </div>
+                                <div id="redirectRules">
+                                    <div class="row redirect-rule-row mb-2 align-items-end">
+                                        <div class="col-md-3">
+                                            <label class="form-label form-label-sm mb-1" data-i18n="section11.from_label">Från sökväg</label>
+                                            <input type="text" class="form-control form-control-sm redirect-from" data-i18n-placeholder="section11.from_placeholder" placeholder="t.ex. /gammal-sida">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label form-label-sm mb-1" data-i18n="section11.to_label">Till sökväg/URL</label>
+                                            <input type="text" class="form-control form-control-sm redirect-to" data-i18n-placeholder="section11.to_placeholder" placeholder="t.ex. /ny-sida">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label form-label-sm mb-1" data-i18n="section11.status_label">Typ av omdirigering</label>
+                                            <select class="form-select form-select-sm redirect-status">
+                                                <option value="301" data-i18n="section11.status_301">301 – Permanent (sökmotorer uppdaterar)</option>
+                                                <option value="302" data-i18n="section11.status_302">302 – Tillfällig</option>
+                                                <option value="307" data-i18n="section11.status_307">307 – Tillfällig (behåller metod)</option>
+                                                <option value="308" data-i18n="section11.status_308">308 – Permanent (behåller metod)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button class="btn btn-sm btn-outline-danger remove-redirect-btn"><i class="fas fa-times"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary mt-1" id="addRedirect">
+                                    <i class="fas fa-plus me-1"></i><span data-i18n="section11.btn_add">Lägg till omdirigering</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 6. Headers -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#headerSection">
+                                <i class="fas fa-heading me-2"></i><span data-i18n="section6.header">6. Säkerhetsinställningar (headers)</span><span class="badge bg-secondary ms-2" data-i18n="badges.recommended">Rekommenderat</span>
+                            </button>
+                        </h2>
+                        <div id="headerSection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <div class="info-box mb-3">
+                                    <i class="fas fa-shield-alt me-1"></i>
+                                    <span data-i18n-html="section6.info_box">Här aktiverar du säkerhetsskydd som skyddar dina besökare mot vanliga internetattacker. <strong>Vi rekommenderar att du kryssar i alla under "Säkerhetsheaders"</strong> – det ger bäst skydd.</span>
+                                    <a href="https://caddyserver.com/docs/caddyfile/directives/header" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                </div>
+
+                                <h6 data-i18n="section6.security_headers_title">Säkerhetsheaders</h6>
+                                <div class="security-headers mb-3">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="headerHSTS">
+                                        <label class="form-check-label" for="headerHSTS">
+                                            Strict-Transport-Security (HSTS)
+                                        </label>
+                                        <div class="form-text" data-i18n="section6.hsts_help">Tvingar webbläsaren att alltid använda HTTPS. <code>max-age=31536000; includeSubDomains; preload</code></div>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="headerXFrameOptions">
+                                        <label class="form-check-label" for="headerXFrameOptions">
+                                            X-Frame-Options
+                                        </label>
+                                        <select class="form-select form-select-sm d-inline-block w-auto ms-2" id="headerXFrameOptionsValue">
+                                            <option value="DENY">DENY</option>
+                                            <option value="SAMEORIGIN">SAMEORIGIN</option>
+                                        </select>
+                                        <div class="form-text" data-i18n-html="section6.xframe_help">Förhindrar clickjacking genom att kontrollera om sidan får visas i en iframe. <strong>DENY</strong>: Aldrig i iframe. <strong>SAMEORIGIN</strong>: Enbart från samma domän.</div>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="headerXContentType">
+                                        <label class="form-check-label" for="headerXContentType">
+                                            X-Content-Type-Options: nosniff
+                                        </label>
+                                        <div class="form-text" data-i18n="section6.xcontent_help">Förhindrar webbläsaren från att gissa (sniffa) MIME-typer. Skyddar mot XSS-attacker via felaktig content-type.</div>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="headerReferrerPolicy">
+                                        <label class="form-check-label" for="headerReferrerPolicy">
+                                            Referrer-Policy
+                                        </label>
+                                        <select class="form-select form-select-sm d-inline-block w-auto ms-2" id="headerReferrerPolicyValue">
+                                            <option value="strict-origin-when-cross-origin">strict-origin-when-cross-origin</option>
+                                            <option value="no-referrer">no-referrer</option>
+                                            <option value="same-origin">same-origin</option>
+                                            <option value="origin">origin</option>
+                                            <option value="no-referrer-when-downgrade">no-referrer-when-downgrade</option>
+                                        </select>
+                                        <div class="form-text" data-i18n-html="section6.referrer_help">Kontrollerar vilken referrer-information som skickas med vid navigering. <strong>strict-origin-when-cross-origin</strong>: Skickar full URL inom samma domän, enbart origin vid cross-origin.</div>
+                                    </div>
+                                    <!-- CSP Builder -->
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="headerCSP">
+                                        <label class="form-check-label fw-semibold" for="headerCSP">
+                                            Content-Security-Policy
+                                        </label>
+                                        <div class="form-text mb-2" data-i18n-html="section6.csp_help">Bestämmer varifrån webbsidan får ladda saker (skript, bilder, typsnitt). Starkt skydd mot skadlig kod. Välj direktiv nedan – varje rad blir en regel.</div>
+                                        <div id="cspBuilder" class="ms-3 mt-2 d-none">
+                                            <div class="help-explainer small mb-2" data-i18n-html="section6.csp_explainer">
+                                                <strong>💡 Så fungerar CSP:</strong> Varje rad är en regel som säger "den här typen av innehåll får bara laddas från de här platserna". Klicka på <strong>Lägg till regel</strong> för att börja. <code>'self'</code> = bara från din egen domän.
+                                            </div>
+                                            <div id="cspDirectives"></div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary mt-1" id="addCspDirective">
+                                                <i class="fas fa-plus"></i> <span data-i18n="section6.btn_add_csp">Lägg till CSP-regel</span>
+                                            </button>
+                                            <div class="mt-2 p-2 bg-light rounded small" id="cspPreview" style="display:none;">
+                                                <strong data-i18n="section6.csp_result">Resultat:</strong> <code id="cspPreviewText"></code>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Permissions-Policy Builder -->
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="headerPermissionsPolicy">
+                                        <label class="form-check-label fw-semibold" for="headerPermissionsPolicy">
+                                            <span data-i18n="section6.pp_label">Permissions-Policy</span> <span class="badge bg-info" data-i18n="section6.pp_replaces">Ersätter Feature-Policy</span>
+                                        </label>
+                                        <div class="form-text mb-2" data-i18n-html="section6.pp_help">Bestämmer vilka funktioner i webbläsaren (kamera, mikrofon, GPS) som sidan får använda. Välj funktioner nedan och ange vad som ska tillåtas.</div>
+                                        <div id="ppBuilder" class="ms-3 mt-2 d-none">
+                                            <div class="help-explainer small mb-2" data-i18n-html="section6.pp_explainer">
+                                                <strong>💡 Så fungerar Permissions-Policy:</strong> Välj vilka webbläsarfunktioner du vill styra. <strong>Blockerad</strong> = funktionen är helt avstängd, <strong>Bara denna sida</strong> = bara din domän får använda den, <strong>Alla</strong> = alla domäner.
+                                            </div>
+                                            <div id="ppFeatures"></div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary mt-1" id="addPpFeature">
+                                                <i class="fas fa-plus"></i> <span data-i18n="section6.btn_add_pp">Lägg till funktion</span>
+                                            </button>
+                                            <div class="mt-2 p-2 bg-light rounded small" id="ppPreview" style="display:none;">
+                                                <strong data-i18n="section6.pp_result">Resultat:</strong> <code id="ppPreviewText"></code>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="headerRemoveServer">
+                                        <label class="form-check-label" for="headerRemoveServer" data-i18n="section6.remove_server_label">
+                                            Ta bort Server-header
+                                        </label>
+                                        <div class="form-text" data-i18n-html="section6.remove_server_help">Tar bort serverns identifieringsheader (<code>-Server</code>) för att dölja vilken server som körs.</div>
+                                    </div>
+                                </div>
+
+                                <h6 data-i18n="section6.custom_headers_title">Egna headers</h6>
+                                <div id="customHeaders">
+                                    <div class="row custom-header-row mb-2">
+                                        <div class="col-2">
+                                            <select class="form-select form-select-sm header-action-select">
+                                                <option value="set" data-i18n="section6.header_action_set">Sätt</option>
+                                                <option value="add" data-i18n="section6.header_action_add">Lägg till</option>
+                                                <option value="delete" data-i18n="section6.header_action_delete">Ta bort</option>
+                                                <option value="defer">Defer</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-4">
+                                            <select class="form-select form-select-sm header-name-select">
+                                                <option value="" data-i18n="section6.header_select_default">-- Välj header --</option>
+                                                <optgroup label="Caching" data-i18n-label="section6.header_optgroup_caching">
+                                                    <option value="Cache-Control">Cache-Control</option>
+                                                    <option value="Pragma">Pragma</option>
+                                                    <option value="Vary">Vary</option>
+                                                    <option value="ETag">ETag</option>
+                                                </optgroup>
+                                                <optgroup label="Säkerhet" data-i18n-label="section6.header_optgroup_security">
+                                                    <option value="X-Permitted-Cross-Domain-Policies">X-Permitted-Cross-Domain-Policies</option>
+                                                    <option value="Cross-Origin-Opener-Policy">Cross-Origin-Opener-Policy</option>
+                                                    <option value="Cross-Origin-Embedder-Policy">Cross-Origin-Embedder-Policy</option>
+                                                    <option value="Cross-Origin-Resource-Policy">Cross-Origin-Resource-Policy</option>
+                                                </optgroup>
+                                                <optgroup label="Proxy / Forwarding">
+                                                    <option value="X-Forwarded-For">X-Forwarded-For</option>
+                                                    <option value="X-Forwarded-Proto">X-Forwarded-Proto</option>
+                                                    <option value="X-Forwarded-Host">X-Forwarded-Host</option>
+                                                    <option value="X-Real-IP">X-Real-IP</option>
+                                                </optgroup>
+                                                <optgroup label="Innehåll" data-i18n-label="section6.header_optgroup_content">
+                                                    <option value="Content-Type">Content-Type</option>
+                                                    <option value="Content-Disposition">Content-Disposition</option>
+                                                    <option value="Content-Language">Content-Language</option>
+                                                    <option value="Accept-Encoding">Accept-Encoding</option>
+                                                </optgroup>
+                                                <optgroup label="CORS">
+                                                    <option value="Access-Control-Allow-Origin">Access-Control-Allow-Origin</option>
+                                                    <option value="Access-Control-Allow-Methods">Access-Control-Allow-Methods</option>
+                                                    <option value="Access-Control-Allow-Headers">Access-Control-Allow-Headers</option>
+                                                    <option value="Access-Control-Max-Age">Access-Control-Max-Age</option>
+                                                    <option value="Access-Control-Allow-Credentials">Access-Control-Allow-Credentials</option>
+                                                </optgroup>
+                                                <optgroup label="Övrigt" data-i18n-label="section6.header_optgroup_other">
+                                                    <option value="X-Robots-Tag">X-Robots-Tag</option>
+                                                    <option value="X-DNS-Prefetch-Control">X-DNS-Prefetch-Control</option>
+                                                    <option value="X-Download-Options">X-Download-Options</option>
+                                                    <option value="custom" data-i18n="section6.header_custom_option">✏️ Egen header...</option>
+                                                </optgroup>
+                                            </select>
+                                            <input type="text" class="form-control form-control-sm mt-1 d-none header-custom-name" data-i18n-placeholder="section6.header_custom_name_placeholder" placeholder="Eget header-namn">
+                                        </div>
+                                        <div class="col-5">
+                                            <select class="form-select form-select-sm header-value-preset-select d-none mb-1">
+                                                <option value="" data-i18n="section6.header_value_preset">📋 Välj vanligt värde...</option>
+                                            </select>
+                                            <div class="form-text small header-value-preset-desc d-none"></div>
+                                            <input type="text" class="form-control form-control-sm header-value-input" data-i18n-placeholder="section6.header_value_placeholder" placeholder="Värde">
+                                            <div class="form-text small header-description-text"></div>
+                                        </div>
+                                        <div class="col-1">
+                                            <button class="btn btn-sm btn-outline-danger remove-header-btn"><i class="fas fa-times"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary mt-1" id="addCustomHeader">
+                                    <i class="fas fa-plus me-1"></i><span data-i18n="section6.btn_add_header">Lägg till header</span>
+                                </button>
+                                <div class="form-text mt-2" data-i18n-html="section6.header_actions_help">
+                                    <strong>Sätt</strong>: Sätter/ersätter headern. <strong>Lägg till</strong>: Lägger till ett extra värde.
+                                    <strong>Ta bort</strong>: Tar bort headern. <strong>Defer</strong>: Väntar med header tills svaret skrivs. <span class="badge bg-info">v2.7+</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CORS Section -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#corsSection">
+                                <i class="fas fa-globe me-2"></i><span data-i18n="section_cors.header">CORS (Cross-Origin Resource Sharing)</span><span class="badge bg-secondary ms-2" data-i18n="badges.optional">Valfritt</span>
+                            </button>
+                        </h2>
+                        <div id="corsSection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <div class="help-explainer mb-3">
+                                    <i class="fas fa-question-circle me-1 text-primary"></i>
+                                    <span data-i18n="section_cors.help_text">CORS bestämmer vilka andra webbplatser som får anropa din server. Om du har en webbapp på en annan domän (t.ex. en frontend på app.example.com som anropar api.example.com) behöver du aktivera CORS så att webbläsaren tillåter anropen.</span>
+                                    <a href="https://caddyserver.com/docs/caddyfile/directives/header" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                </div>
+
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enableCors">
+                                    <label class="form-check-label" for="enableCors" data-i18n="section_cors.enable_label">Aktivera CORS</label>
+                                </div>
+
+                                <div id="corsOptions" class="d-none">
+                                    <!-- Allowed Origins -->
+                                    <div class="mb-3">
+                                        <label for="corsOriginMode" class="form-label" data-i18n="section_cors.origin_label">Tillåtna ursprung (origins)</label>
+                                        <select class="form-select" id="corsOriginMode">
+                                            <option value="same" data-i18n="section_cors.origin_same">Bara samma ursprung</option>
+                                            <option value="all" data-i18n="section_cors.origin_all">Alla ursprung (*)</option>
+                                            <option value="custom" data-i18n="section_cors.origin_custom">Egna ursprung</option>
+                                        </select>
+                                    </div>
+                                    <div id="corsCustomOriginSection" class="d-none mb-3">
+                                        <label for="corsCustomOrigins" class="form-label" data-i18n="section_cors.origin_custom_placeholder">T.ex. https://app.example.com, https://other.example.com</label>
+                                        <input type="text" class="form-control" id="corsCustomOrigins" data-i18n-placeholder="section_cors.origin_custom_placeholder" placeholder="T.ex. https://app.example.com, https://other.example.com">
+                                        <div class="form-text" data-i18n="section_cors.origin_custom_help">Ange en eller flera URL:er (kommaseparerade) som ska få anropa din server.</div>
+                                    </div>
+
+                                    <!-- Allowed Methods -->
+                                    <div class="mb-3">
+                                        <label class="form-label" data-i18n="section_cors.methods_label">Tillåtna HTTP-metoder</label>
+                                        <div class="d-flex flex-wrap gap-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input cors-method-checkbox" type="checkbox" id="corsMethodGet" value="GET" checked>
+                                                <label class="form-check-label" for="corsMethodGet">GET</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input cors-method-checkbox" type="checkbox" id="corsMethodPost" value="POST" checked>
+                                                <label class="form-check-label" for="corsMethodPost">POST</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input cors-method-checkbox" type="checkbox" id="corsMethodPut" value="PUT">
+                                                <label class="form-check-label" for="corsMethodPut">PUT</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input cors-method-checkbox" type="checkbox" id="corsMethodDelete" value="DELETE">
+                                                <label class="form-check-label" for="corsMethodDelete">DELETE</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input cors-method-checkbox" type="checkbox" id="corsMethodPatch" value="PATCH">
+                                                <label class="form-check-label" for="corsMethodPatch">PATCH</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input cors-method-checkbox" type="checkbox" id="corsMethodOptions" value="OPTIONS" checked>
+                                                <label class="form-check-label" for="corsMethodOptions">OPTIONS</label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Allowed Headers -->
+                                    <div class="mb-3">
+                                        <label for="corsAllowHeaders" class="form-label" data-i18n="section_cors.headers_label">Tillåtna headers</label>
+                                        <div class="input-group mb-2">
+                                            <select class="form-select" id="corsHeaderPreset" style="max-width: 200px;">
+                                                <option value="" data-i18n="section_cors.headers_preset_label">Vanliga headers</option>
+                                                <option value="Content-Type">Content-Type</option>
+                                                <option value="Authorization">Authorization</option>
+                                                <option value="X-Requested-With">X-Requested-With</option>
+                                                <option value="Accept">Accept</option>
+                                            </select>
+                                            <button class="btn btn-outline-secondary" type="button" id="addCorsHeaderPreset">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                        <input type="text" class="form-control" id="corsAllowHeaders" data-i18n-placeholder="section_cors.headers_placeholder" placeholder="T.ex. Content-Type, Authorization">
+                                    </div>
+
+                                    <!-- Allow Credentials -->
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="corsAllowCredentials">
+                                        <label class="form-check-label" for="corsAllowCredentials" data-i18n="section_cors.credentials_label">Tillåt credentials (cookies/auth)</label>
+                                        <div class="form-text" data-i18n="section_cors.credentials_help">Tillåter att cookies och autentiseringsuppgifter skickas med i anropen.</div>
+                                    </div>
+
+                                    <!-- Max Age -->
+                                    <div class="mb-3">
+                                        <label for="corsMaxAge" class="form-label" data-i18n="section_cors.max_age_label">Max ålder (sekunder)</label>
+                                        <input type="number" class="form-control" id="corsMaxAge" value="86400" placeholder="86400">
+                                        <div class="form-text" data-i18n="section_cors.max_age_help">Hur länge webbläsaren sparar CORS-godkännandet. Standard: 86400 (24 timmar).</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 7. Encoding/Compression -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#encodeSection">
+                                <i class="fas fa-compress-alt me-2"></i><span data-i18n="section7.header">7. Komprimering (snabbare laddning)</span><span class="badge bg-secondary ms-2" data-i18n="badges.recommended">Rekommenderat</span>
+                            </button>
+                        </h2>
+                        <div id="encodeSection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableEncode">
+                                    <label class="form-check-label" for="enableEncode" data-i18n="section7.enable_label">Aktivera komprimering (rekommenderat)</label>
+                                </div>
+                                <div class="info-box mb-3">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <span data-i18n-html="section7.info_box">Komprimering gör att sidor laddas snabbare genom att minska mängden data som skickas. Tänk på det som att zippa en fil innan du skickar den – mottagaren packar upp den automatiskt. <strong>Vi rekommenderar att aktivera detta.</strong></span>
+                                    <a href="https://caddyserver.com/docs/caddyfile/directives/encode" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                </div>
+
+                                <div id="encodeOptions" class="d-none">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="encodeZstd" checked>
+                                        <label class="form-check-label" for="encodeZstd">
+                                            Zstandard (zstd)
+                                        </label>
+                                        <div class="form-text" data-i18n="section7.zstd_help">Snabbare och bättre komprimering än gzip. Stöds av de flesta moderna webbläsare. <span class="badge bg-success">Rekommenderad</span></div>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="encodeGzip" checked>
+                                        <label class="form-check-label" for="encodeGzip">
+                                            Gzip
+                                        </label>
+                                        <div class="form-text" data-i18n="section7.gzip_help">Universellt stöd i alla webbläsare. Något långsammare komprimering men maximalt kompatibel.</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="encodeMinLength" class="form-label" data-i18n="section7.min_length_label">Minsta storlek för komprimering (bytes)</label>
+                                        <input type="number" class="form-control" id="encodeMinLength" placeholder="256" value="">
+                                        <div class="form-text" data-i18n="section7.min_length_help">Filer mindre än detta komprimeras inte (overhead > vinst). Caddy:s standard är 256 bytes. <span class="badge bg-info">v2.7+</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Logging -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#logSection">
+                                <i class="fas fa-file-alt me-2"></i><span data-i18n="section5.header">5. Loggning (aktivitetslogg)</span><span class="badge bg-info ms-2" data-i18n="badges.recommended">Rekommenderat</span>
+                            </button>
+                        </h2>
+                        <div id="logSection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <div class="help-explainer mb-3">
+                                    <i class="fas fa-question-circle me-1 text-primary"></i>
+                                    <strong data-i18n="section5.help_title">Vad är detta?</strong> <span data-i18n="section5.help_text">Loggning sparar information om alla besök – vem som besökte sidan, när, och om något gick fel. Mycket användbart vid felsökning.</span>
+                                    <a href="https://caddyserver.com/docs/caddyfile/directives/log" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enableLogging" checked>
+                                    <label class="form-check-label" for="enableLogging" data-i18n="section5.enable_label">Spara aktivitetslogg</label>
+                                </div>
+
+                                <div id="loggingOptions">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="logOutput" class="form-label" data-i18n="section5.output_label">Logg-destination</label>
+                                            <select class="form-select" id="logOutput">
+                                                <option value="file" data-i18n="section5.output_file">Fil</option>
+                                                <option value="stdout">Stdout</option>
+                                                <option value="stderr">Stderr</option>
+                                            </select>
+                                            <div class="form-text" data-i18n-html="section5.output_help">
+                                                <strong>Fil</strong>: Sparar till angiven sökväg. <strong>Stdout/Stderr</strong>: Skriver till standardutgång (bra för Docker/systemd).
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="logFormat" class="form-label" data-i18n="section5.format_label">Format</label>
+                                            <select class="form-select" id="logFormat">
+                                                <option value="json" data-i18n="section5.format_json">JSON (standard)</option>
+                                                <option value="console" data-i18n="section5.format_console">Console (läsbart)</option>
+                                                <option value="filter" data-i18n="section5.format_filter">Filter</option>
+                                            </select>
+                                            <div class="form-text" data-i18n-html="section5.format_help">
+                                                <strong>JSON</strong>: Strukturerat, bäst för loggverktyg. <strong>Console</strong>: Mänskligt läsbart format.
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="logLevel" class="form-label" data-i18n="section5.level_label">Loggnivå</label>
+                                        <select class="form-select" id="logLevel">
+                                            <option value="INFO" data-i18n="section5.level_info">INFO (standard)</option>
+                                            <option value="DEBUG" data-i18n="section5.level_debug">DEBUG (mest verbose)</option>
+                                            <option value="WARN" data-i18n="section5.level_warn">WARN</option>
+                                            <option value="ERROR" data-i18n="section5.level_error">ERROR (minst verbose)</option>
+                                        </select>
+                                        <div class="form-text" data-i18n-html="section5.level_help">
+                                            <strong>DEBUG</strong>: All information, inkl. intern debug-data.
+                                            <strong>INFO</strong>: Normala händelser.
+                                            <strong>WARN</strong>: Potentiella problem.
+                                            <strong>ERROR</strong>: Enbart fel.
+                                        </div>
+                                    </div>
+
+                                    <div id="logFileOptions">
+                                        <div class="mb-3">
+                                            <label for="logFilePath" class="form-label" data-i18n="section5.path_label">Loggsökväg</label>
+                                            <input type="text" class="form-control" id="logFilePath" placeholder="/var/log/caddy/hostname.log" value="/var/log/caddy/access.log">
+                                            <div class="form-text" data-i18n-html="section5.path_help">Standard: <code>/var/log/caddy/FQDN.log</code> – Fylls i automatiskt baserat på hostname. Kan ändras manuellt.</div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-4 mb-3">
+                                                <label for="logRollSize" class="form-label" data-i18n="section5.roll_size_label">Rotationsstorlek</label>
+                                                <input type="text" class="form-control" id="logRollSize" placeholder="100mb" value="100mb">
+                                                <div class="form-text" data-i18n="section5.roll_size_help">Max filstorlek innan rotation (t.ex. 100mb, 1gb).</div>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label for="logRollKeep" class="form-label" data-i18n="section5.roll_keep_label">Antal att behålla</label>
+                                                <input type="number" class="form-control" id="logRollKeep" placeholder="10" value="10">
+                                                <div class="form-text" data-i18n="section5.roll_keep_help">Antal roterade loggfiler att behålla.</div>
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label for="logRollKeepFor" class="form-label" data-i18n="section5.roll_keep_for_label">Behåll i (tid)</label>
+                                                <input type="text" class="form-control" id="logRollKeepFor" placeholder="720h" value="720h">
+                                                <div class="form-text" data-i18n="section5.roll_keep_for_help">Max ålder för roterade loggar (t.ex. 720h = 30 dagar).</div>
+                                            </div>
+                                        </div>
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" id="logRollLocalTime">
+                                            <label class="form-check-label" for="logRollLocalTime" data-i18n="section5.local_time_label">Använd lokal tid i filnamn</label>
+                                            <div class="form-text" data-i18n="section5.local_time_help">Standard är UTC. Aktivera för att använda serverns lokala tid i roterade filnamn.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 9. Additional Options -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#extraSection">
+                                <i class="fas fa-sliders-h me-2"></i><span data-i18n="section9.header">9. Åtkomst och begränsningar</span><span class="badge bg-secondary ms-2" data-i18n="badges.optional">Valfritt</span>
+                            </button>
+                        </h2>
+                        <div id="extraSection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <div class="help-explainer mb-3">
+                                    <i class="fas fa-question-circle me-1 text-primary"></i>
+                                    <strong data-i18n="section9.help_title">Vad är detta?</strong> <span data-i18n="section9.help_text">Här kan du begränsa vem som har åtkomst till din tjänst – med lösenord, IP-adresser, eller storleksbegränsningar.</span>
+                                    <a href="https://caddyserver.com/docs/caddyfile/directives" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                </div>
+                                <!-- Basic Auth -->
+                                <h6 data-i18n="section9.basic_auth_title">Basic Authentication</h6> <a href="https://caddyserver.com/docs/caddyfile/directives/basicauth" target="_blank" class="docs-link-sm" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book"></i></a>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableBasicAuth">
+                                    <label class="form-check-label" for="enableBasicAuth" data-i18n="section9.basic_auth_enable">Aktivera Basic Auth</label>
+                                </div>
+                                <div id="basicAuthSection" class="d-none mb-3">
+                                    <div class="info-box mb-2">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <span data-i18n-html="section9.basic_auth_info">Basic Auth skyddar sidan med användarnamn och lösenord. Lösenordet hashas automatiskt med bcrypt – du skriver in det i klartext så sköter verktyget resten.</span>
+                                    </div>
+                                    <div id="basicAuthUsers">
+                                        <div class="basic-auth-row mb-3 p-2 border rounded">
+                                            <div class="row mb-2">
+                                                <div class="col-5">
+                                                    <label class="form-label form-label-sm mb-1" data-i18n="section9.basic_auth_user_label">Användarnamn</label>
+                                                    <input type="text" class="form-control form-control-sm basic-auth-username" data-i18n-placeholder="section9.basic_auth_user_placeholder" placeholder="Användarnamn">
+                                                </div>
+                                                <div class="col-5">
+                                                    <label class="form-label form-label-sm mb-1" data-i18n="section9.basic_auth_plainpass_label">Lösenord</label>
+                                                    <div class="input-group input-group-sm">
+                                                        <input type="password" class="form-control form-control-sm basic-auth-password" data-i18n-placeholder="section9.basic_auth_plainpass_placeholder" placeholder="Skriv lösenord här">
+                                                        <button class="btn btn-outline-secondary btn-toggle-pass" type="button" title="Visa/dölj"><i class="fas fa-eye"></i></button>
+                                                    </div>
+                                                </div>
+                                                <div class="col-2 d-flex align-items-end">
+                                                    <button class="btn btn-sm btn-primary hash-password-btn w-100" data-i18n="section9.btn_hash">Hasha</button>
+                                                </div>
+                                            </div>
+                                            <div class="basic-auth-hash-display d-none">
+                                                <label class="form-label form-label-sm mb-1 text-muted" data-i18n="section9.basic_auth_hash_label">Bcrypt-hash (används i konfigurationen)</label>
+                                                <div class="input-group input-group-sm">
+                                                    <input type="text" class="form-control form-control-sm basic-auth-hash font-monospace" readonly>
+                                                    <button class="btn btn-outline-success btn-sm" disabled><i class="fas fa-check"></i></button>
+                                                </div>
+                                            </div>
+                                            <div class="col-12 mt-1 text-end">
+                                                <button class="btn btn-sm btn-outline-danger remove-auth-btn"><i class="fas fa-times me-1"></i><span data-i18n="section9.btn_remove_user">Ta bort</span></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary" id="addBasicAuthUser">
+                                        <i class="fas fa-plus me-1"></i><span data-i18n="section9.btn_add_user">Lägg till användare</span>
+                                    </button>
+                                </div>
+
+                                <!-- IP access control -->
+                                <h6 class="mt-3" data-i18n="section9.ip_access_title">IP-åtkomstkontroll</h6> <a href="https://caddyserver.com/docs/caddyfile/matchers#remote-host" target="_blank" class="docs-link-sm" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book"></i></a>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableIpAccess">
+                                    <label class="form-check-label" for="enableIpAccess" data-i18n="section9.ip_access_enable">Aktivera IP-begränsning</label>
+                                </div>
+                                <div id="ipAccessSection" class="d-none mb-3">
+                                    <div class="info-box mb-2">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        <span data-i18n-html="section9.ip_access_info">Begränsa åtkomst baserat på klientens IP-adress. Använder <code>remote_ip</code>-matchern.</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label" data-i18n="section9.ip_mode_label">Läge</label>
+                                        <select class="form-select" id="ipAccessMode">
+                                            <option value="whitelist" data-i18n="section9.ip_whitelist">Whitelist – Tillåt enbart dessa IP:er</option>
+                                            <option value="blacklist" data-i18n="section9.ip_blacklist">Blacklist – Blockera dessa IP:er</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label for="allowedIps" class="form-label" data-i18n="section9.ip_cidr_label">IP/CIDR (en per rad)</label>
+                                        <textarea class="form-control" id="allowedIps" rows="3" placeholder="10.0.0.0/8&#10;192.168.1.0/24&#10;203.0.113.5"></textarea>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-8 mb-2">
+                                            <label for="ipDenyMessage" class="form-label" data-i18n="section9.ip_deny_message_label">Nekningsmeddelande</label>
+                                            <input type="text" class="form-control" id="ipDenyMessage" value="Access denied" placeholder="Access denied">
+                                            <div class="form-text" data-i18n="section9.ip_deny_message_help">Meddelandet som visas för klienter som inte uppfyller IP-reglerna.</div>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label for="ipDenyStatusCode" class="form-label" data-i18n="section9.ip_deny_status_label">HTTP-statuskod</label>
+                                            <select class="form-select" id="ipDenyStatusCode">
+                                                <option value="403">403 Forbidden</option>
+                                                <option value="401">401 Unauthorized</option>
+                                                <option value="404">404 Not Found</option>
+                                                <option value="429">429 Too Many Requests</option>
+                                            </select>
+                                            <div class="form-text" data-i18n="section9.ip_deny_status_help">Statuskod i svaret vid nekad åtkomst.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Request body limits -->
+                                <h6 class="mt-3" data-i18n="section9.request_body_title">Request body</h6> <a href="https://caddyserver.com/docs/caddyfile/directives/request_body" target="_blank" class="docs-link-sm" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book"></i></a>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="enableBodyLimit">
+                                    <label class="form-check-label" for="enableBodyLimit" data-i18n="section9.body_limit_enable">Begränsa storlek på uppladdningar/indata</label>
+                                </div>
+                                <div id="bodyLimitSection" class="d-none mb-3">
+                                    <div class="form-text mb-2" data-i18n="section9.body_limit_help">Förhindrar att för stora filer laddas upp till din server. Skyddar mot missbruk och sparar resurser.</div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-2">
+                                            <label for="bodyLimitPreset" class="form-label" data-i18n="section9.body_limit_preset_label">Maxstorlek</label>
+                                            <select class="form-select" id="bodyLimitPreset">
+                                                <option value="1MB">1 MB</option>
+                                                <option value="5MB">5 MB</option>
+                                                <option value="10MB" selected>10 MB</option>
+                                                <option value="50MB">50 MB</option>
+                                                <option value="100MB">100 MB</option>
+                                                <option value="500MB">500 MB</option>
+                                                <option value="1GB">1 GB</option>
+                                                <option value="custom" data-i18n="section9.body_limit_custom_label">Egen storlek</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-2 d-none" id="bodyLimitCustomGroup">
+                                            <label for="bodyLimitCustom" class="form-label" data-i18n="section9.body_limit_custom_label">Egen storlek</label>
+                                            <input type="text" class="form-control" id="bodyLimitCustom" data-i18n-placeholder="section9.body_limit_custom_placeholder" placeholder="t.ex. 25MB">
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="requestBodyMaxSize" value="">
+                                </div>
+
+                                <!-- Timeouts -->
+                                <h6 class="mt-3" data-i18n="section9.timeouts_title">Timeouts</h6>
+                                <div class="info-box mb-2">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <span data-i18n-html="section9.timeouts_info">Timeouts sätts i det globala options-blocket under <code>servers</code>. De gäller alla sajter i samma serverblock.</span>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="timeoutRead" class="form-label" data-i18n="section9.read_timeout_label">Read timeout</label>
+                                        <input type="text" class="form-control" id="timeoutRead" data-i18n-placeholder="section9.read_timeout_placeholder" placeholder="t.ex. 30s">
+                                        <div class="form-text" data-i18n="section9.read_timeout_help">Max tid att läsa request-headers.</div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="timeoutWrite" class="form-label" data-i18n="section9.write_timeout_label">Write timeout</label>
+                                        <input type="text" class="form-control" id="timeoutWrite" data-i18n-placeholder="section9.write_timeout_placeholder" placeholder="t.ex. 30s">
+                                        <div class="form-text" data-i18n="section9.write_timeout_help">Max tid att skriva hela svaret.</div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="timeoutIdle" class="form-label" data-i18n="section9.idle_timeout_label">Idle timeout</label>
+                                        <input type="text" class="form-control" id="timeoutIdle" data-i18n-placeholder="section9.idle_timeout_placeholder" placeholder="t.ex. 120s">
+                                        <div class="form-text" data-i18n="section9.idle_timeout_help">Max tid för inaktiva keep-alive-anslutningar.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 10. Advanced Features (Keycloak + Client Cert) -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#advancedSection">
+                                <i class="fas fa-cogs me-2"></i><span data-i18n="section_advanced.header">10. Avancerade funktioner</span><span class="badge bg-warning text-dark ms-2" data-i18n="badges.advanced">Avancerat</span>
+                            </button>
+                        </h2>
+                        <div id="advancedSection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <div class="help-explainer mb-3">
+                                    <i class="fas fa-question-circle me-1 text-primary"></i>
+                                    <strong data-i18n="section_advanced.help_title">Vad är detta?</strong>
+                                    <span data-i18n="section_advanced.help_text">Här finns avancerade funktioner som Keycloak single sign-on (SSO) och klientcertifikatautentisering (mTLS). Dessa används sällan men kan behövas i specifika miljöer.</span>
+                                    <a href="https://caddyserver.com/docs/caddyfile/directives" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                </div>
+
+                                <!-- Sub-section A: Keycloak / Forward Auth -->
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h5 class="mb-0"><i class="fas fa-key me-2"></i><span data-i18n="section_advanced.keycloak_title">Keycloak / Forward Auth (SSO)</span></h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="help-explainer mb-3">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            <strong data-i18n="section10.help_title">Vad är detta?</strong> <span data-i18n="section10.help_text">Om ni använder Keycloak för att hantera inloggning (single sign-on) kan Caddy automatiskt kontrollera att besökaren är inloggad innan den får åtkomst till tjänsten. Besökare som inte är inloggade skickas till Keycloak:s inloggningssida.</span>
+                                            <a href="https://caddyserver.com/docs/caddyfile/directives/forward_auth" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                        </div>
+
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="enableKeycloak">
+                                            <label class="form-check-label" for="enableKeycloak" data-i18n="section10.enable_label">Aktivera Keycloak / Forward Auth</label>
+                                        </div>
+
+                                        <div id="keycloakOptions" class="d-none">
+                                            <div class="mb-3">
+                                                <label for="keycloakUrl" class="form-label" data-i18n="section10.url_label">Keycloak auth-endpoint URL</label>
+                                                <input type="text" class="form-control" id="keycloakUrl"
+                                                       data-i18n-placeholder="section10.url_placeholder" placeholder="t.ex. http://keycloak:8080/realms/myrealm/protocol/openid-connect/auth">
+                                                <div class="form-text" data-i18n-html="section10.url_help">
+                                                    Full URL till Keycloak:s autentiserings-endpoint. Vanligtvis:
+                                                    <code>http://keycloak:PORT/realms/REALM/protocol/openid-connect/auth</code>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="keycloakUri" class="form-label" data-i18n="section10.uri_label">Auth URI (forward_auth)</label>
+                                                <input type="text" class="form-control" id="keycloakUri"
+                                                       data-i18n-placeholder="section10.uri_placeholder" placeholder="t.ex. /realms/myrealm/protocol/openid-connect/userinfo">
+                                                <div class="form-text" data-i18n-html="section10.uri_help">
+                                                    URI som Caddy ska anropa för att verifiera autentiseringen. Vanligtvis <code>/realms/REALM/protocol/openid-connect/userinfo</code>.
+                                                    Keycloak:s userinfo-endpoint returnerar 200 om token är giltig.
+                                                </div>
+                                            </div>
+
+                                            <h6 class="mt-3" data-i18n="section10.copy_headers_title">Headers att kopiera från auth-svaret</h6>
+                                            <div class="form-text mb-2" data-i18n-html="section10.copy_headers_help">
+                                                Välj vilka headers från Keycloak-svaret som ska vidarebefordras till backend-servern.
+                                                Dessa sätts som <code>header_up</code> i <code>copy_headers</code>.
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="form-check mb-1">
+                                                        <input class="form-check-input" type="checkbox" id="kcHeaderRemoteUser" checked>
+                                                        <label class="form-check-label" for="kcHeaderRemoteUser">X-Forwarded-User</label>
+                                                    </div>
+                                                    <div class="form-check mb-1">
+                                                        <input class="form-check-input" type="checkbox" id="kcHeaderRemoteEmail">
+                                                        <label class="form-check-label" for="kcHeaderRemoteEmail">X-Forwarded-Email</label>
+                                                    </div>
+                                                    <div class="form-check mb-1">
+                                                        <input class="form-check-input" type="checkbox" id="kcHeaderRemoteGroups">
+                                                        <label class="form-check-label" for="kcHeaderRemoteGroups">X-Forwarded-Groups</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="form-check mb-1">
+                                                        <input class="form-check-input" type="checkbox" id="kcHeaderAuthorization">
+                                                        <label class="form-check-label" for="kcHeaderAuthorization">Authorization</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3 mt-3">
+                                                <label for="keycloakCustomCopyHeaders" class="form-label" data-i18n="section10.custom_headers_label">Ytterligare headers att kopiera (kommaseparerade)</label>
+                                                <input type="text" class="form-control" id="keycloakCustomCopyHeaders"
+                                                       data-i18n-placeholder="section10.custom_headers_placeholder" placeholder="t.ex. X-Custom-Claim, X-Tenant-Id">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sub-section B: Client Certificate Authentication -->
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h5 class="mb-0"><i class="fas fa-id-card me-2"></i><span data-i18n="section_advanced.client_cert_title">Klientcertifikat (mTLS)</span></h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="help-explainer mb-3">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            <strong data-i18n="section4.help_title">Vad är detta?</strong> <span data-i18n="section4.help_text">Klientverifiering innebär att den som besöker sidan måste bevisa sin identitet med ett digitalt certifikat (som ett digitalt ID-kort). Används ofta när enbart specifika system eller personer ska ha åtkomst.</span>
+                                            <a href="https://caddyserver.com/docs/caddyfile/directives/tls#client-authentication" target="_blank" class="docs-link ms-1" data-i18n-title="docs.read_more" title="Read documentation"><i class="fas fa-book me-1"></i><span data-i18n="docs.caddy_docs">Caddy docs</span> ↗</a>
+                                        </div>
+
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="enableClientAuth">
+                                            <label class="form-check-label" for="enableClientAuth" data-i18n="section4.enable_label">Aktivera klientcertifikatautentisering</label>
+                                        </div>
+
+                                        <div id="clientAuthOptions" class="d-none">
+                                            <div class="mb-3">
+                                                <label for="clientAuthMode" class="form-label" data-i18n="section4.mode_label">Läge</label>
+                                                <select class="form-select" id="clientAuthMode">
+                                                    <option value="require_and_verify" data-i18n="section4.mode_require_verify">Kräv och verifiera (Rekommenderat)</option>
+                                                    <option value="require" data-i18n="section4.mode_require">Kräv (utan verifiering)</option>
+                                                    <option value="request" data-i18n="section4.mode_request">Begär (valfritt)</option>
+                                                    <option value="verify_if_given" data-i18n="section4.mode_verify_if_given">Verifiera om tillhandahållet</option>
+                                                </select>
+                                                <div class="form-text" id="clientAuthModeDesc" data-i18n="section4.mode_desc">Kräver att klienten visar ett giltigt certifikat signerat av betrodd CA.</div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="trustedCaCert" class="form-label" data-i18n="section4.trusted_ca_label">Betrodd CA-certifikat (sökväg)</label>
+                                                <input type="text" class="form-control" id="trustedCaCert" placeholder="/etc/caddy/client-ca.crt">
+                                            </div>
+
+                                            <!-- Certificate generation -->
+                                            <div class="card bg-light mb-3">
+                                                <div class="card-body">
+                                                    <h6 class="card-title"><i class="fas fa-magic me-1"></i><span data-i18n="section4.generate_title">Generera certifikat</span></h6>
+                                                    <p class="card-text small" data-i18n="section4.generate_desc">Skapa en CA och klientcertifikat direkt i webbgränssnittet.</p>
+
+                                                    <div class="row mb-2">
+                                                        <div class="col-md-6">
+                                                            <label class="form-label small" data-i18n="section4.ca_cn_label">CA Common Name</label>
+                                                            <input type="text" class="form-control form-control-sm" id="caCn" value="CaddyConfer CA">
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small" data-i18n="section4.org_label">Organisation</label>
+                                                            <input type="text" class="form-control form-control-sm" id="caOrg" value="CaddyConfer">
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small" data-i18n="section4.validity_label">Giltighetstid (dagar)</label>
+                                                            <input type="number" class="form-control form-control-sm" id="caValidity" value="3650">
+                                                        </div>
+                                                    </div>
+                                                    <button class="btn btn-sm btn-outline-primary mb-3" id="btnGenerateCa">
+                                                        <i class="fas fa-certificate me-1"></i><span data-i18n="section4.btn_generate_ca">Skapa CA</span>
+                                                    </button>
+                                                    <div id="caResult" class="d-none"></div>
+
+                                                    <hr>
+                                                    <div class="row mb-2">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label small" data-i18n="section4.client_cn_label">Klient CN</label>
+                                                            <input type="text" class="form-control form-control-sm" id="clientCn" placeholder="client-1">
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small" data-i18n="section4.org_label">Organisation</label>
+                                                            <input type="text" class="form-control form-control-sm" id="clientOrg" value="CaddyConfer">
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label small" data-i18n="section4.validity_label">Giltighetstid (dagar)</label>
+                                                            <input type="number" class="form-control form-control-sm" id="clientValidity" value="365">
+                                                        </div>
+                                                        <div class="col-md-2 d-flex align-items-end">
+                                                            <button class="btn btn-sm btn-outline-success w-100" id="btnGenerateClient" disabled>
+                                                                <i class="fas fa-plus me-1"></i><span data-i18n="section4.btn_generate_client">Skapa</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div id="clientCertResult" class="d-none"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 11. Preview & Export -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#previewSection">
+                                <i class="fas fa-eye me-2"></i><span data-i18n="section12.header">11. Spara och exportera</span>
+                            </button>
+                        </h2>
+                        <div id="previewSection" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+                            <div class="accordion-body">
+                                <p class="text-muted" data-i18n="section12.description">Din konfiguration visas i realtid i rutan till höger. När du är nöjd, använd knapparna nedan för att spara eller ladda ner filen.</p>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button class="btn btn-primary" id="btnDownload">
+                                        <i class="fas fa-download me-1"></i><span data-i18n="section12.btn_download">Ladda ner .caddy-fil</span>
+                                    </button>
+                                    <button class="btn btn-success" id="btnSaveServer">
+                                        <i class="fas fa-save me-1"></i><span data-i18n="section12.btn_save_server">Spara på server</span>
+                                    </button>
+                                    <button class="btn btn-outline-secondary" id="btnCopyConfig">
+                                        <i class="fas fa-copy me-1"></i><span data-i18n="section12.btn_copy">Kopiera till urklipp</span>
+                                    </button>
+                                    <button class="btn btn-outline-dark" id="btnGitPushQuick" data-bs-toggle="modal" data-bs-target="#gitModal">
+                                        <i class="fas fa-code-branch me-1"></i><span data-i18n="git.btn_push">Push to Git</span>
+                                    </button>
+                                    <button class="btn btn-outline-info" id="btnSshQuick" data-bs-toggle="modal" data-bs-target="#sshModal">
+                                        <i class="fas fa-terminal me-1"></i><span data-i18n="ssh.btn_deploy">Deploy via SSH</span>
+                                    </button>
+                                </div>
+                                <div id="saveResult" class="mt-2"></div>
+
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Saved configs list -->
+                <div class="card mt-3 mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-folder-open me-1"></i><span data-i18n="saved.title">Sparade konfigurationer</span></span>
+                        <button class="btn btn-sm btn-outline-primary" id="btnRefreshConfigs">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="savedConfigsList" class="list-group list-group-flush">
+                            <div class="list-group-item text-muted small" data-i18n="saved.loading">Laddar...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Raw editor modal trigger -->
+                <div class="card mb-3 d-none" id="rawEditorCard">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-edit me-1"></i><span data-i18n="raw_editor.title_prefix">Redigera konfiguration:</span> <code id="rawEditorFilename"></code></span>
+                        <div>
+                            <button class="btn btn-sm btn-success me-1" id="btnSaveRawEditor">
+                                <i class="fas fa-save me-1"></i><span data-i18n="raw_editor.btn_save">Spara</span>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" id="btnCloseRawEditor">
+                                <i class="fas fa-times me-1"></i><span data-i18n="raw_editor.btn_close">Stäng</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <textarea class="form-control config-editor" id="rawEditorContent" rows="20" spellcheck="false"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right panel: Live Preview -->
+            <div class="col-lg-5">
+                <div class="sticky-top" style="top: 70px;">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-code me-1"></i><span data-i18n="preview.title">Caddyfile-förhandsvisning</span></span>
+                            <div>
+                                <span id="validationBadge" class="badge bg-secondary me-2" data-i18n="preview.waiting">Väntar på input</span>
+                                <button class="btn btn-sm btn-outline-light" id="btnCopyPreview" data-i18n-title="preview.copy_title" title="Kopiera">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <pre id="configPreview" class="config-preview mb-0"><code># Fyll i konfigurationen till vänster
+# så genereras Caddyfile här i realtid.</code></pre>
+                        </div>
+                    </div>
+
+                    <div id="validationMessages" class="mt-2"></div>
+
+                    <!-- Recommendations panel -->
+                    <div class="card mt-2" id="recommendationsCard">
+                        <div class="card-header recommendations-header d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-lightbulb me-1"></i><span data-i18n="recommendations.title">Rekommendationer</span></span>
+                            <span id="recommendationCount" class="badge bg-info">0</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="recommendationsList" class="recommendation-list">
+                                <div class="p-3 text-muted small" data-i18n="recommendations.empty">Fyll i konfigurationen för att få rekommendationer.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Release Notes Modal -->
+    <div class="modal fade" id="releaseNotesModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-newspaper me-2"></i>Release Notes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="releaseNotesContent" class="release-notes-content">
+                        <div class="text-center p-3"><i class="fas fa-spinner fa-spin me-1"></i> Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Git Push Modal -->
+    <div class="modal fade" id="gitModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-code-branch me-2"></i><span data-i18n="git.title">Push to Git</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="help-explainer mb-3">
+                        <i class="fas fa-question-circle me-1 text-primary"></i>
+                        <strong data-i18n="git.help_title">What is this?</strong>
+                        <span data-i18n="git.help_text">Push your configuration files to a Git repository for version control and team collaboration.</span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="gitRemoteUrl" class="form-label" data-i18n="git.remote_label">Git Remote URL</label>
+                        <input type="text" class="form-control" id="gitRemoteUrl" data-i18n-placeholder="git.remote_placeholder" placeholder="e.g. https://github.com/user/caddy-configs.git">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="gitBranch" class="form-label" data-i18n="git.branch_label">Branch</label>
+                            <input type="text" class="form-control" id="gitBranch" value="main">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="gitCommitMessage" class="form-label" data-i18n="git.commit_label">Commit message</label>
+                            <input type="text" class="form-control" id="gitCommitMessage" data-i18n-placeholder="git.commit_placeholder" placeholder="Update Caddy configuration">
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" id="btnGitPush">
+                            <i class="fas fa-upload me-1"></i><span data-i18n="git.btn_push">Push to Git</span>
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" id="btnGitStatus">
+                            <i class="fas fa-info-circle me-1"></i><span data-i18n="git.btn_status">Check Status</span>
+                        </button>
+                    </div>
+                    <div id="gitResult" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SSH Deploy Modal -->
+    <div class="modal fade" id="sshModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-terminal me-2"></i><span data-i18n="ssh.title">Remote Server (SSH/SFTP)</span></h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <span id="sshStatusBadge" class="badge bg-secondary" data-i18n="ssh.status_disconnected">Disconnected</span>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="help-explainer mb-3">
+                        <i class="fas fa-shield-alt me-1 text-warning"></i>
+                        <strong data-i18n="ssh.security_title">Security Notice</strong>
+                        <span data-i18n="ssh.security_text">SSH credentials are sent to the CaddyConfer server for connection. Only use this in a trusted network environment. Credentials are not stored permanently.</span>
+                    </div>
+
+                    <!-- Connection form (shown when disconnected) -->
+                    <div id="sshConnectForm">
+                        <div class="row mb-3">
+                            <div class="col-md-5">
+                                <label for="sshHost" class="form-label" data-i18n="ssh.host_label">Host</label>
+                                <input type="text" class="form-control" id="sshHost" data-i18n-placeholder="ssh.host_placeholder" placeholder="e.g. 192.168.1.10">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="sshPort" class="form-label" data-i18n="ssh.port_label">Port</label>
+                                <input type="number" class="form-control" id="sshPort" value="22">
+                            </div>
+                            <div class="col-md-5">
+                                <label for="sshUsername" class="form-label" data-i18n="ssh.username_label">Username</label>
+                                <input type="text" class="form-control" id="sshUsername" data-i18n-placeholder="ssh.username_placeholder" placeholder="e.g. deploy">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="sshRemotePath" class="form-label" data-i18n="ssh.remote_path_label">Remote config directory</label>
+                            <input type="text" class="form-control" id="sshRemotePath" value="/etc/caddy/conf.d" data-i18n-placeholder="ssh.remote_path_placeholder" placeholder="/etc/caddy/conf.d">
+                            <div class="form-text" data-i18n="ssh.remote_path_help">The directory on the remote server where .caddy config files are stored.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" data-i18n="ssh.auth_method_label">Authentication Method</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="sshAuthType" id="sshAuthPassword" value="password" checked>
+                                <label class="form-check-label" for="sshAuthPassword" data-i18n="ssh.auth_password">Password</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="sshAuthType" id="sshAuthKey" value="key">
+                                <label class="form-check-label" for="sshAuthKey" data-i18n="ssh.auth_key">SSH Key</label>
+                            </div>
+                        </div>
+                        <div id="sshPasswordFields">
+                            <div class="mb-3">
+                                <label for="sshPassword" class="form-label" data-i18n="ssh.password_label">Password</label>
+                                <input type="password" class="form-control" id="sshPassword">
+                            </div>
+                        </div>
+                        <div id="sshKeyFields" class="d-none">
+                            <div class="mb-3">
+                                <label for="sshPrivateKey" class="form-label" data-i18n="ssh.key_label">Private Key (PEM)</label>
+                                <textarea class="form-control" id="sshPrivateKey" rows="4" data-i18n-placeholder="ssh.key_placeholder" placeholder="Paste your private key here or use the upload button..."></textarea>
+                                <div class="mt-1">
+                                    <button class="btn btn-sm btn-outline-secondary" id="btnUploadKey">
+                                        <i class="fas fa-file-upload me-1"></i><span data-i18n="ssh.btn_upload_key">Upload Key File</span>
+                                    </button>
+                                    <input type="file" id="sshKeyFileInput" class="d-none" accept=".pem,.key,.pub,*">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="sshKeyPassphrase" class="form-label" data-i18n="ssh.passphrase_label">Key Passphrase (optional)</label>
+                                <input type="password" class="form-control" id="sshKeyPassphrase">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" id="btnSshConnect">
+                            <i class="fas fa-plug me-1"></i><span data-i18n="ssh.btn_connect">Connect</span>
+                        </button>
+                        <div id="sshConnectResult" class="mt-2"></div>
+                    </div>
+
+                    <!-- Connected panel (shown when connected) -->
+                    <div id="sshConnectedPanel" class="d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-success"><i class="fas fa-check-circle me-1"></i><span id="sshConnectedInfo"></span></span>
+                            <button class="btn btn-sm btn-outline-danger" id="btnSshDisconnect">
+                                <i class="fas fa-times me-1"></i><span data-i18n="ssh.btn_disconnect">Disconnect</span>
+                            </button>
+                        </div>
+
+                        <!-- Remote file list -->
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="ssh.col_filename">Filename</th>
+                                        <th data-i18n="ssh.col_size">Size</th>
+                                        <th data-i18n="ssh.col_modified">Modified</th>
+                                        <th data-i18n="ssh.col_actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sshFileList">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Action buttons -->
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-outline-primary" id="btnSshRefresh">
+                                <i class="fas fa-sync-alt me-1"></i><span data-i18n="ssh.btn_refresh">Refresh</span>
+                            </button>
+                            <button class="btn btn-sm btn-success" id="btnSshUploadCurrent">
+                                <i class="fas fa-cloud-upload-alt me-1"></i><span data-i18n="ssh.btn_upload_config">Upload Current Config</span>
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning" id="btnSshValidate">
+                                <i class="fas fa-check-double me-1"></i><span data-i18n="ssh.btn_validate">Validate Config</span>
+                            </button>
+                            <button class="btn btn-sm btn-warning" id="btnSshReload">
+                                <i class="fas fa-redo me-1"></i><span data-i18n="ssh.btn_reload">Reload Caddy</span>
+                            </button>
+                        </div>
+                        <div id="sshActionResult" class="mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center text-muted py-3 mt-4 border-top">
+        <small><span data-i18n="footer.text">CaddyConfer v1.1 – Genererar konfigurationer för</span> <a href="https://caddyserver.com" target="_blank">Caddy Web Server</a> <span data-i18n="footer.suffix">(vanilla, inga plugins)</span> | <span id="footerCaddyVersion" data-i18n="footer.version_checking">Kontrollerar Caddy-version...</span></small>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/tooltips.js"></script>
+    <script src="js/config-builder.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

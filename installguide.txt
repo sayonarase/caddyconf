@@ -1,0 +1,354 @@
+================================================================================
+  CaddyConfer – Installation Guide
+  Web interface for Caddy server configuration
+================================================================================
+
+Contents:
+  1. Prerequisites
+  2. Installation on Linux
+  3. Installation on Windows
+  4. Starting the application
+  5. Using the application
+  6. Troubleshooting
+  7. Running as a service (optional)
+
+================================================================================
+1. PREREQUISITES
+================================================================================
+
+  • Python 3.9 or newer  (3.11+ recommended)
+  • pip  (Python package manager, usually included with Python)
+  • Web browser  (Chrome, Firefox, Edge or Safari)
+
+  Python packages that will be installed:
+    - Flask          (web server)
+    - cryptography   (certificate generation)
+    - bcrypt         (password hashing for Basic Auth)
+    - paramiko       (SSH/SFTP for remote server management)
+
+  CaddyConfer does NOT require:
+    - Node.js
+    - Docker
+    - A database
+    - Internet access (except for Caddy version checking)
+
+================================================================================
+2. INSTALLATION ON LINUX  (Ubuntu/Debian/Rocky/RHEL)
+================================================================================
+
+  QUICK INSTALL (recommended):
+  ----------------------------
+  Run the automated installation script:
+
+    bash install.sh
+
+  The script handles everything: dependencies, virtual environment,
+  Python packages, optional systemd service, and firewall configuration.
+  Works on Ubuntu, Debian, Rocky Linux, RHEL, CentOS, Fedora, and AlmaLinux.
+
+
+  MANUAL INSTALL:
+  ---------------
+
+  Step 1 – Install Python
+  -----------------------
+  Most Linux distributions come with Python pre-installed. Verify:
+
+    python3 --version
+
+  If Python is missing:
+
+    sudo apt update
+    sudo apt install python3 python3-pip python3-venv
+
+  On RHEL/CentOS/Fedora:
+
+    sudo dnf install python3 python3-pip
+
+
+  Step 2 – Download CaddyConfer
+  -----------------------------
+  Copy the entire CaddyConfer folder to a location of your choice, e.g.:
+
+    mkdir -p /opt/caddyconfer
+    cp -r CaddyConfer/* /opt/caddyconfer/
+    cd /opt/caddyconfer
+
+
+  Step 3 – Create a virtual environment (recommended)
+  ----------------------------------------------------
+    python3 -m venv venv
+    source venv/bin/activate
+
+
+  Step 4 – Install dependencies
+  -----------------------------
+    pip install flask cryptography bcrypt paramiko
+
+  Or if a requirements.txt is available:
+
+    pip install -r requirements.txt
+
+
+  Step 5 – Start
+  --------------
+    python3 server.py
+
+  You should see:
+    * Running on http://0.0.0.0:5555
+
+  Open your browser and navigate to:
+    http://localhost:5555
+
+  Done!
+
+
+================================================================================
+3. INSTALLATION ON WINDOWS
+================================================================================
+
+  Step 1 – Install Python
+  -----------------------
+  a) Download Python from https://www.python.org/downloads/
+  b) Run the installer
+  c) IMPORTANT: Check "Add Python to PATH" during installation!
+  d) Click "Install Now"
+
+  Verify that it works – open Command Prompt (cmd) or
+  PowerShell and type:
+
+    python --version
+
+  You should see e.g. "Python 3.12.4".
+
+
+  Step 2 – Download CaddyConfer
+  -----------------------------
+  Copy the entire CaddyConfer folder to a location of your choice, e.g.:
+
+    C:\CaddyConfer\
+
+  The file structure should look like this:
+
+    C:\CaddyConfer\
+    ├── server.py
+    ├── requirements.txt
+    ├── installguide.txt    (this file)
+    ├── install.sh          (Linux auto-installer)
+    ├── RELEASE_NOTES.md
+    ├── public\
+    │   ├── index.html
+    │   ├── css\
+    │   │   └── style.css
+    │   └── js\
+    │       ├── app.js
+    │       ├── config-builder.js
+    │       ├── i18n.js
+    │       └── tooltips.js
+    ├── configs\             (created automatically)
+    └── certs\               (created automatically)
+
+
+  Step 3 – Install dependencies
+  -----------------------------
+  Open Command Prompt (cmd) or PowerShell:
+
+    cd C:\CaddyConfer
+    pip install flask cryptography bcrypt paramiko
+
+  If "pip" is not found, try:
+
+    python -m pip install flask cryptography bcrypt paramiko
+
+
+  Step 4 – Start
+  --------------
+    python server.py
+
+  You should see:
+    * Running on http://0.0.0.0:5555
+
+  Open your browser and navigate to:
+    http://localhost:5555
+
+  Done!
+
+
+  Firewall note (Windows):
+  If Windows Firewall asks for access, click "Allow" if you want
+  other computers on the network to reach the interface.
+  The application listens on all network interfaces (0.0.0.0:5555).
+
+
+================================================================================
+4. STARTING THE APPLICATION
+================================================================================
+
+  Command (same for Linux and Windows):
+
+    python server.py         (Windows)
+    python3 server.py        (Linux)
+
+  The application starts on port 5555. Open:
+
+    http://localhost:5555             <- on the same computer
+    http://<your-ip>:5555            <- from another computer on the network
+
+  Stop the application:
+    Press Ctrl+C in the terminal.
+
+
+  Change port:
+  Open server.py and edit the line at the bottom:
+
+    app.run(host='0.0.0.0', port=5555, debug=True)
+                                      ^^^^
+    Replace 5555 with the desired port.
+
+  Production mode:
+  For production, change debug=True to debug=False:
+
+    app.run(host='0.0.0.0', port=5555, debug=False)
+
+
+================================================================================
+5. USING THE APPLICATION
+================================================================================
+
+  1. Open http://localhost:5555 in your web browser
+  2. Choose a quick template (Simple, Secure, Load-balanced) or start blank
+  3. Enter the web address (e.g. myapp.example.com)
+  4. Enter the destination server (e.g. 192.168.1.10:8080)
+  5. Choose desired settings (TLS, headers, logging, etc.)
+  6. Follow the recommendations in the right panel
+  7. Download or save the configuration
+
+  Saved files are stored in the "configs/" folder as:
+    configs/myapp.example.com.caddy
+
+  Generated certificates are stored in the "certs/" folder.
+
+  Deploy via SSH:
+  The "Deploy via SSH" button lets you connect to a remote Caddy server,
+  upload configurations, validate them with "caddy validate", and reload
+  the Caddy service – all from the web interface. Supports password and
+  SSH key authentication.
+
+  Push to Git:
+  The "Push to Git" button lets you push your configuration files to a
+  Git repository for version control and team collaboration.
+
+  Language:
+  The interface supports Swedish and English. Click the language
+  button (🇸🇪 SV / 🇬🇧 EN) in the top navigation bar to switch.
+
+
+================================================================================
+6. TROUBLESHOOTING
+================================================================================
+
+  Problem: "python" or "python3" not found
+  --------------------------------------------------
+  Linux:  sudo apt install python3
+  Windows: Reinstall Python and check "Add to PATH"
+
+  Problem: "pip" not found
+  --------------------------------------------------
+  Try: python -m pip install flask cryptography bcrypt paramiko
+
+  Problem: "Port already in use"
+  --------------------------------------------------
+  Another process is using port 5555.
+  Change the port in server.py or stop the other process.
+
+  Linux:  sudo lsof -i :5555     (see which process)
+          sudo kill <PID>         (stop it)
+  Windows: netstat -ano | findstr :5555
+           taskkill /PID <PID> /F
+
+  Problem: Page does not load / "Connection refused"
+  --------------------------------------------------
+  * Make sure server.py is running (the terminal window must be open)
+  * Make sure you typed the correct address: http://localhost:5555
+  * Make sure the firewall is not blocking port 5555
+
+  Problem: "ModuleNotFoundError: No module named 'flask'" (or paramiko, bcrypt, etc.)
+  --------------------------------------------------
+  Dependencies are not installed. Run:
+    pip install flask cryptography bcrypt paramiko
+
+  If you are using a virtual environment (venv), make sure it is activated:
+    Linux:   source venv/bin/activate
+    Windows: venv\Scripts\activate
+
+
+================================================================================
+7. RUNNING AS A SERVICE (OPTIONAL)
+================================================================================
+
+  --- Linux (systemd) ---
+
+  Create a service file:
+
+    sudo nano /etc/systemd/system/caddyconfer.service
+
+  Contents:
+
+    [Unit]
+    Description=CaddyConfer - Caddy Configuration Generator
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=www-data
+    WorkingDirectory=/opt/caddyconfer
+    ExecStart=/opt/caddyconfer/venv/bin/python server.py
+    Restart=always
+    RestartSec=5
+    Environment=FLASK_ENV=production
+
+    [Install]
+    WantedBy=multi-user.target
+
+  Enable and start:
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable caddyconfer
+    sudo systemctl start caddyconfer
+
+  Check status:
+
+    sudo systemctl status caddyconfer
+
+  View logs:
+
+    sudo journalctl -u caddyconfer -f
+
+
+  --- Windows (as a Scheduled Task) ---
+
+  1. Open Task Scheduler
+  2. Create a new task:
+     - Name: CaddyConfer
+     - Trigger: At startup
+     - Action: Start a program
+       Program: python
+       Arguments: C:\CaddyConfer\server.py
+       Start in: C:\CaddyConfer
+     - Settings: Check "Run whether user is logged on or not"
+
+  Alternatively via PowerShell:
+
+    $action = New-ScheduledTaskAction -Execute "python" `
+      -Argument "C:\CaddyConfer\server.py" `
+      -WorkingDirectory "C:\CaddyConfer"
+    $trigger = New-ScheduledTaskTrigger -AtStartup
+    Register-ScheduledTask -TaskName "CaddyConfer" `
+      -Action $action -Trigger $trigger `
+      -Description "CaddyConfer web interface" `
+      -RunLevel Highest
+
+
+================================================================================
+  Questions or issues? Contact your system administrator.
+================================================================================
