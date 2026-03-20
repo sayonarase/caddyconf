@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import secrets
 import time
+import re
+import posixpath
 import bcrypt
 import paramiko
 from flask import Flask, request, jsonify, send_from_directory, send_file
@@ -61,6 +63,17 @@ def _get_ssh_session(session_id):
     return session, None
 
 
+def _validate_remote_filename(remote_path, filename):
+    """Validate that filename does not escape remote_path."""
+    if not filename or '/' in filename or '\\' in filename or '..' in filename:
+        return None
+    remote_file = posixpath.join(remote_path, filename)
+    normalized = posixpath.normpath(remote_file)
+    if not normalized.startswith(remote_path.rstrip('/') + '/') and normalized != remote_path.rstrip('/'):
+        return None
+    return normalized
+
+
 @app.route('/')
 def index():
     return send_from_directory('public', 'index.html')
@@ -70,6 +83,8 @@ def index():
 def save_config():
     """Save a Caddyfile configuration to disk."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     hostname = data.get('hostname', '').strip()
     config_content = data.get('config', '').strip()
 
@@ -77,9 +92,13 @@ def save_config():
         return jsonify({'error': 'Hostname and config content are required'}), 400
 
     # Sanitize hostname for filename
-    safe_hostname = hostname.replace('*', '_wildcard_').replace(':', '_')
+    safe_hostname = hostname.replace('*', '_wildcard_').replace(':', '_').replace('/', '_').replace('\\', '_').replace('..', '_')
     filename = f"{safe_hostname}.caddy"
     filepath = os.path.join(CONFIGS_DIR, filename)
+
+    # Path containment check
+    if not os.path.realpath(filepath).startswith(os.path.realpath(CONFIGS_DIR)):
+        return jsonify({'error': 'Invalid hostname'}), 400
 
     # Backup old version if it exists
     if os.path.exists(filepath):
@@ -124,8 +143,13 @@ def config_history(filename):
 @app.route('/api/config-history-content/<path:filename>', methods=['GET'])
 def config_history_content(filename):
     """Get content of a historical config version."""
+    if not filename.endswith('.bak'):
+        return jsonify({'error': 'Invalid filename'}), 400
     history_dir = os.path.join(CONFIGS_DIR, 'history')
     filepath = os.path.join(history_dir, filename)
+    # Path containment check
+    if not os.path.realpath(filepath).startswith(os.path.realpath(history_dir)):
+        return jsonify({'error': 'Invalid filename'}), 400
     if not os.path.exists(filepath):
         return jsonify({'error': 'Not found'}), 404
     with open(filepath, 'r', encoding='utf-8') as f:
@@ -164,6 +188,8 @@ def download_config(filename):
 def generate_ca():
     """Generate a CA certificate for client certificate authentication."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     cn = data.get('cn', 'CaddyConfer CA')
     org = data.get('org', 'CaddyConfer')
     validity_days = int(data.get('validity_days', 3650))
@@ -227,6 +253,8 @@ def generate_ca():
 def generate_client_cert():
     """Generate a client certificate signed by a CA."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     cn = data.get('cn', 'Client')
     org = data.get('org', 'CaddyConfer')
     validity_days = int(data.get('validity_days', 365))
@@ -437,6 +465,8 @@ def read_config(filename):
 def hash_password():
     """Hash a plaintext password with bcrypt for use in Caddy basicauth."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     password = data.get('password', '')
     if not password:
         return jsonify({'error': 'No password provided'}), 400
@@ -450,10 +480,19 @@ def hash_password():
 def git_push():
     """Push configuration files to a git remote."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     remote_url = data.get('remote_url', '').strip()
     branch = data.get('branch', 'main').strip() or 'main'
     commit_message = data.get('commit_message', 'Update Caddy configuration').strip() or 'Update Caddy configuration'
     files = data.get('files', [])
+
+    # Validate file list
+    if files:
+        safe_pattern = re.compile(r'^[a-zA-Z0-9._-]+$')
+        for f in files:
+            if not safe_pattern.match(f):
+                return jsonify({'success': False, 'error': f'Invalid filename in files list: {f}'}), 400
 
     if not remote_url:
         return jsonify({'success': False, 'error': 'Remote URL is required'}), 400
@@ -560,6 +599,8 @@ def release_notes():
 def ssh_connect():
     """Connect to a remote server via SSH and open an SFTP channel."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     host = data.get('host', '').strip()
     port = int(data.get('port', 22))
     username = data.get('username', '').strip()
@@ -574,7 +615,7 @@ def ssh_connect():
 
     try:
         ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.set_missing_host_key_policy(paramiko.WarningPolicy())
 
         if auth_type == 'key' and private_key_str:
             key_file = io.StringIO(private_key_str)
@@ -592,6 +633,12 @@ def ssh_connect():
             ssh.connect(host, port=port, username=username, password=password, timeout=10)
 
         sftp = ssh.open_sftp()
+
+        # Get host key fingerprint for display
+        transport = ssh.get_transport()
+        host_key = transport.get_remote_server_key()
+        fingerprint = ':'.join(f'{b:02x}' for b in host_key.get_fingerprint())
+        key_type = host_key.get_name()
 
         # Verify remote path exists
         try:
@@ -613,7 +660,9 @@ def ssh_connect():
         return jsonify({
             'success': True,
             'session_id': session_id,
-            'message': f'Connected to {host} as {username}'
+            'message': f'Connected to {host} as {username}',
+            'host_fingerprint': fingerprint,
+            'host_key_type': key_type
         })
     except paramiko.AuthenticationException:
         return jsonify({'error': 'Authentication failed. Check username and password/key.'}), 401
@@ -627,6 +676,8 @@ def ssh_connect():
 def ssh_disconnect():
     """Disconnect an active SSH session."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     session_id = data.get('session_id', '')
 
     session = _ssh_sessions.pop(session_id, None)
@@ -646,6 +697,8 @@ def ssh_disconnect():
 def ssh_list_files():
     """List .caddy and .conf files in the remote path."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     session_id = data.get('session_id', '')
 
     session, err = _get_ssh_session(session_id)
@@ -672,6 +725,8 @@ def ssh_list_files():
 def ssh_download_file():
     """Download a file from the remote server via SFTP."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     session_id = data.get('session_id', '')
     filename = data.get('filename', '').strip()
 
@@ -684,7 +739,9 @@ def ssh_download_file():
 
     try:
         sftp = session['sftp']
-        remote_file = os.path.join(session['remote_path'], filename).replace('\\', '/')
+        remote_file = _validate_remote_filename(session['remote_path'], filename)
+        if not remote_file:
+            return jsonify({'error': 'Invalid filename'}), 400
         with sftp.open(remote_file, 'r') as f:
             content = f.read().decode('utf-8')
         return jsonify({'filename': filename, 'content': content})
@@ -696,6 +753,8 @@ def ssh_download_file():
 def ssh_upload_file():
     """Upload a file to the remote server via SFTP."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     session_id = data.get('session_id', '')
     filename = data.get('filename', '').strip()
     content = data.get('content', '')
@@ -709,7 +768,9 @@ def ssh_upload_file():
 
     try:
         sftp = session['sftp']
-        remote_file = os.path.join(session['remote_path'], filename).replace('\\', '/')
+        remote_file = _validate_remote_filename(session['remote_path'], filename)
+        if not remote_file:
+            return jsonify({'error': 'Invalid filename'}), 400
         with sftp.open(remote_file, 'w') as f:
             f.write(content)
         return jsonify({'success': True, 'message': f'Uploaded {filename}', 'remote_file': remote_file})
@@ -721,6 +782,8 @@ def ssh_upload_file():
 def ssh_validate_config():
     """Run caddy validate on the remote server via SSH."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     session_id = data.get('session_id', '')
 
     session, err = _get_ssh_session(session_id)
@@ -741,6 +804,8 @@ def ssh_validate_config():
 def ssh_reload_caddy():
     """Reload Caddy on the remote server via SSH."""
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
     session_id = data.get('session_id', '')
 
     session, err = _get_ssh_session(session_id)
