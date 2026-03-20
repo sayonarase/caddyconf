@@ -8,3 +8,6 @@ backups/
 *.zip
 .DS_Store
 Thumbs.db
+
+sonnet-recommendations.txt
+GPT54-recommendations.txt
