@@ -1,0 +1,14 @@
+services:
+  caddyconfer:
+    build: .
+    container_name: caddyconfer
+    ports:
+      - "5555:5555"
+    volumes:
+      - caddyconfer-configs:/app/configs
+      - caddyconfer-certs:/app/certs
+    restart: unless-stopped
+
+volumes:
+  caddyconfer-configs:
+  caddyconfer-certs:

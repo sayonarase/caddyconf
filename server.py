@@ -758,8 +758,10 @@ def ssh_reload_caddy():
 
 
 if __name__ == '__main__':
+    import os
+    debug_mode = os.environ.get('FLASK_ENV') != 'production'
     print("=" * 60)
     print("  CaddyConfer - Caddy Reverse Proxy Configuration UI")
     print("  http://localhost:5555")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=5555, debug=True)
+    app.run(host='0.0.0.0', port=5555, debug=debug_mode)

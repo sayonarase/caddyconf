@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+backups/
+.git/
+.gitignore
+*.zip
+*.md
+!RELEASE_NOTES.md
+screenshot.png
+install.sh
+installguide.txt

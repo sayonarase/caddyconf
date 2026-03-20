@@ -45,6 +45,19 @@ python server.py
 
 Open **http://localhost:5555** in your browser.
 
+### Docker
+
+```bash
+# Build and run
+docker compose up -d
+
+# Or without compose
+docker build -t caddyconfer .
+docker run -d -p 5555:5555 --name caddyconfer caddyconfer
+```
+
+Configs and certs are persisted in Docker volumes.
+
 ### Linux Auto-Installer
 
 ```bash
