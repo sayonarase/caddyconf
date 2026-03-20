@@ -238,6 +238,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show ZeroSSL section on load (since zerossl_api is now default)
     document.getElementById('zerosslApiSection').classList.remove('d-none');
 
+    // ZeroSSL MAC key triggers preview update
+    document.getElementById('zerosslMacKey')?.addEventListener('input', updatePreview);
+
     // ========================================================
     // Client Auth toggle
     // ========================================================

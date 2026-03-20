@@ -14,6 +14,36 @@ Versions follow [Semantic Versioning](https://semver.org/): **MAJOR.MINOR.PATCH*
 
 ---
 
+## v1.6.0 — Security Hardening & Bug Fixes
+
+Comprehensive security audit performed by two independent AI code reviewers (Claude Sonnet 4.6 and GPT-5.4). All identified issues have been resolved.
+
+### Critical Fixes
+
+- **Path traversal in save-config** — Hostnames containing `../` or path separators could write files outside the `configs/` directory. Now strips `/`, `\`, `..` from hostnames and validates the resolved path stays within `CONFIGS_DIR`.
+- **Path traversal in config-history-content** — The `<path:filename>` route parameter allowed reading arbitrary files on the server. Now requires `.bak` extension and validates path containment within the history directory.
+
+### High Severity Fixes
+
+- **SFTP path traversal** — Filenames sent to SSH download/upload could escape the configured remote directory using `../`. New `_validate_remote_filename()` helper using `posixpath` rejects any traversal attempts.
+- **SSH host key verification** — `AutoAddPolicy` (which silently accepts any host key, enabling MITM attacks) replaced with `WarningPolicy`. The server now returns the remote host's **fingerprint** and **key type** on connect so users can verify identity.
+- **ZeroSSL EAB bug** — Both `key_id` and `mac_key` were set to the same value (the API key). ZeroSSL requires two distinct values. Added a new **"ZeroSSL EAB MAC Key"** input field. Generated config now uses the correct separate values. Includes i18n support (SV/EN).
+
+### Medium Severity Fixes
+
+- **Invalid JSON crash protection** — All 12 POST endpoints now return a clean `400` error (`"Invalid or missing JSON body"`) instead of crashing with `500 AttributeError` when the request body is missing or malformed.
+- **Git files list validation** — Filenames passed to `git add` are now validated with a strict regex (`^[a-zA-Z0-9._-]+$`). Path separators, traversal segments, and git flags are rejected.
+- **Wrong Caddy directive** — Passive health check latency was emitted as `unhealthy_request_count` (expects an integer) instead of `unhealthy_latency` (expects a duration). Fixed to generate valid Caddyfile syntax.
+- **Docker production server** — Docker image now uses **gunicorn** (`gunicorn --bind 0.0.0.0:5555 --workers 2 --timeout 120`) instead of Flask's built-in development server. Added `gunicorn>=21.0` to `requirements.txt`.
+- **install.sh dependency drift** — Hardcoded `pip install flask cryptography bcrypt paramiko` replaced with `pip install -r requirements.txt` to prevent future divergence between install script and requirements file.
+
+### i18n Improvements
+
+- **Validation messages fully internationalized** — All 8 hardcoded Swedish validation/warning strings in `config-builder.js` now use the `t()` i18n function. Messages display correctly in both Swedish and English depending on selected language.
+  - `validation.hostname_required`, `validation.invalid_hostname_format`, `validation.tls_cert_key_required`, `validation.no_site_config`, `validation.compression_no_method`, `validation.keycloak_no_endpoint`, `validation.no_upstream`, `validation.lb_header_no_name`
+
+---
+
 ## v1.5.0 — Documentation Links
 
 - **Inline Caddy documentation links** — Every configuration section now includes a direct link (📖) to the relevant page on [caddyserver.com/docs](https://caddyserver.com/docs). 22 links total covering all main sections and sub-features (load balancing, health checks, transport, basic auth, mTLS, etc.).

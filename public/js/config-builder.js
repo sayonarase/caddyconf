@@ -19,13 +19,13 @@ class ConfigBuilder {
 
         const hostname = this.val('hostname');
         if (!hostname) {
-            this.errors.push('Hostname/FQDN krävs.');
+            this.errors.push(t('validation.hostname_required'));
             return { config: '', errors: this.errors, warnings: this.warnings };
         }
 
         // Validate hostname
         if (!this.isValidHostname(hostname)) {
-            this.errors.push('Ogiltigt hostname-format. Ange ett giltigt FQDN (t.ex. app.example.se).');
+            this.errors.push(t('validation.invalid_hostname_format'));
         }
 
         // Hostname FQDN format warning
@@ -90,6 +90,7 @@ class ConfigBuilder {
         const gracePeriod = this.val('gracePeriod');
         const tlsMode = this.val('tlsMode');
         const zerosslApiKey = this.val('zerosslApiKey');
+        const zerosslMacKey = this.val('zerosslMacKey');
 
         // Timeouts
         const readTimeout = this.val('timeoutRead');
@@ -108,7 +109,7 @@ class ConfigBuilder {
             lines.push('\tacme_ca https://acme.zerossl.com/v2/DV90');
             lines.push(`\tacme_eab {`);
             lines.push(`\t\tkey_id  ${zerosslApiKey}`);
-            lines.push(`\t\tmac_key ${zerosslApiKey}`);
+            lines.push(`\t\tmac_key ${zerosslMacKey || zerosslApiKey}`);
             lines.push(`\t}`);
         }
 
@@ -119,7 +120,7 @@ class ConfigBuilder {
             lines.push('\tacme_issuer zerossl {');
             lines.push(`\t\teab {`);
             lines.push(`\t\t\tkey_id  ${zerosslApiKey}`);
-            lines.push(`\t\t\tmac_key ${zerosslApiKey}`);
+            lines.push(`\t\t\tmac_key ${zerosslMacKey || zerosslApiKey}`);
             lines.push(`\t\t}`);
             lines.push('\t}');
             lines.push('\t# Fallback: Let\'s Encrypt');
@@ -265,7 +266,7 @@ class ConfigBuilder {
         if (errorPagesBlock) directives.push(errorPagesBlock);
 
         if (directives.length === 0) {
-            this.warnings.push('Ingen konfiguration angiven i site-blocket.');
+            this.warnings.push(t('validation.no_site_config'));
         }
 
         const body = directives.join('\n\n');
@@ -294,7 +295,7 @@ class ConfigBuilder {
             const cert = this.val('tlsCertPath');
             const key = this.val('tlsKeyPath');
             if (!cert || !key) {
-                this.errors.push('TLS: Sökvägar till certifikat och nyckel krävs vid manuellt certifikat.');
+                this.errors.push(t('validation.tls_cert_key_required'));
                 return '';
             }
             lines.push(`\ttls ${cert} ${key}`);
@@ -403,7 +404,7 @@ class ConfigBuilder {
         const minLength = this.val('encodeMinLength');
 
         if (!zstd && !gzip) {
-            this.warnings.push('Komprimering aktiverad men ingen metod vald.');
+            this.warnings.push(t('validation.compression_no_method'));
             return '';
         }
 
@@ -541,7 +542,7 @@ class ConfigBuilder {
         const keycloakUri = this.val('keycloakUri');
 
         if (!keycloakUrl) {
-            this.errors.push('Keycloak aktiverat men ingen auth-endpoint URL angiven.');
+            this.errors.push(t('validation.keycloak_no_endpoint'));
             return '';
         }
 
@@ -579,7 +580,7 @@ class ConfigBuilder {
     buildReverseProxyBlock() {
         const upstreams = this.getUpstreams();
         if (upstreams.length === 0) {
-            this.warnings.push('Ingen backend-server (upstream) angiven för reverse proxy.');
+            this.warnings.push(t('validation.no_upstream'));
             return '';
         }
 
@@ -611,7 +612,7 @@ class ConfigBuilder {
                             lines.push(`\t\tlb_policy header ${headerName}`);
                         } else {
                             lines.push(`\t\tlb_policy header`);
-                            this.warnings.push('Header-baserad lastbalansering vald men inget header-namn angivet.');
+                            this.warnings.push(t('validation.lb_header_no_name'));
                         }
                     } else if (lbPolicy === 'random_choose') {
                         const count = this.val('lbRandomChooseCount') || '2';
@@ -657,7 +658,7 @@ class ConfigBuilder {
                 lines.push('\t\t# Passiv hälsokontroll');
                 if (failDuration) lines.push(`\t\tfail_duration ${failDuration}`);
                 if (maxFails) lines.push(`\t\tmax_fails ${maxFails}`);
-                if (unhealthyLatency) lines.push(`\t\tunhealthy_request_count ${unhealthyLatency}`);
+                if (unhealthyLatency) lines.push(`\t\tunhealthy_latency ${unhealthyLatency}`);
                 if (unhealthyStatus) {
                     unhealthyStatus.split(/\s+/).forEach(s => {
                         lines.push(`\t\tunhealthy_status ${s.trim()}`);

@@ -28,4 +28,4 @@ ENV FLASK_ENV=production
 EXPOSE 5555
 
 # Run with production settings
-CMD ["python", "server.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5555", "--workers", "2", "--timeout", "120", "server:app"]

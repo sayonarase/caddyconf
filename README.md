@@ -58,6 +58,8 @@ docker run -d -p 5555:5555 --name caddyconfer caddyconfer
 
 Configs and certs are persisted in Docker volumes.
 
+> **Note:** The Docker image uses [Gunicorn](https://gunicorn.org/) as the production WSGI server instead of the Flask development server.
+
 ### Linux Auto-Installer
 
 ```bash
@@ -104,6 +106,10 @@ Configuration files are saved as `<FQDN>.caddy`, e.g.:
 ```
 configs/myapp.example.com.caddy
 ```
+
+## Security
+
+As of v1.6.0, CaddyConfer includes path traversal protection on all file endpoints, SSH host key fingerprint display, input validation on all API routes, and strict filename sanitization for git operations. See [RELEASE_NOTES.md](RELEASE_NOTES.md) for full details.
 
 ## Caddy Compatibility
 

@@ -239,6 +239,11 @@
                                             💡 <strong>Har du redan en ZeroSSL API-nyckel i din globala Caddyfile?</strong> Då kan du lämna detta fält tomt – Caddy använder automatiskt nyckeln som redan finns konfigurerad. Fältet behövs bara om du vill att nyckeln ska skrivas in i just denna konfiguration.
                                         </div>
                                     </div>
+                                    <div class="mb-3">
+                                        <label for="zerosslMacKey" class="form-label" data-i18n="section3.zerossl_mac_label">ZeroSSL EAB MAC Key</label>
+                                        <input type="text" class="form-control" id="zerosslMacKey" data-i18n-placeholder="section3.zerossl_mac_placeholder" placeholder="e.g. base64-encoded HMAC key">
+                                        <div class="form-text" data-i18n="section3.zerossl_mac_help">The EAB MAC key (HMAC secret) from your ZeroSSL dashboard. This is different from the Key ID above.</div>
+                                    </div>
                                 </div>
 
                                 <!-- Custom cert/key section -->

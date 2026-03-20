@@ -185,8 +185,8 @@ setup_venv() {
     pip install --upgrade pip --quiet 2>/dev/null
 
     # Install dependencies
-    pip install --quiet flask cryptography bcrypt paramiko 2>/dev/null
-    info "Installed: Flask, cryptography, bcrypt, paramiko"
+    pip install --quiet -r "$INSTALL_DIR/requirements.txt" 2>/dev/null
+    info "Installed Python packages from requirements.txt"
 
     # Verify all imports work
     python3 -c "import flask; import cryptography; import bcrypt; import paramiko; print('All packages OK')" 2>/dev/null
